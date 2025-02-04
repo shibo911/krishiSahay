@@ -18,7 +18,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 const Tab = createBottomTabNavigator();
 
 // Replace with your backend URL (ensure your device/network configuration is correct)
-const BACKEND_URL = "http://192.168.152.101:5000";
+const BACKEND_URL = "http://192.168.25.101:5000";
 
 //
 // DiseasePredictionScreen: Allows the user to pick an image, display it, and call your prediction API.

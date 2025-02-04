@@ -6,15 +6,16 @@ import tensorflow as tf
 import numpy as np
 from keras.preprocessing import image
 from PIL import Image
-from openai import OpenAI  # Using the client style similar to your previous code
+import google.generativeai as genai
 
 # -----------------------------
 # Configuration & Initialization
 # -----------------------------
-client = OpenAI(
-    api_key="2158b5dcd7b84550b05870af0c7e8f8a",
-    base_url="https://api.aimlapi.com",
-)
+# Initialize Gemini API Key and Model
+GEN_AI_API_KEY = "AIzaSyDlXMPgEKz9rySMSPtsgRlyeyoti35xFLU" # Place your API key here
+genai.configure(api_key=GEN_AI_API_KEY)
+model_name = "gemini-2.0-flash-exp"  # Example, use a different model if needed
+gemini_model = genai.GenerativeModel(model_name)
 
 # Load your pre-trained crop disease model
 model_path = 'crop_disease_model.h5'
@@ -135,31 +136,19 @@ def predict_disease(img_path):
 
 def get_disease_info(disease_name):
     """
-    Returns comprehensive details about a specific crop disease.
+    Returns comprehensive details about a specific crop disease using Gemini API.
     """
-    response = client.chat.completions.create(
-        model="meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo",
-        messages=[
-            {"role": "system", "content": "You are an expert on crop diseases and agriculture."},
-            {"role": "user", "content": f"Provide comprehensive details about {disease_name}. Include introduction, causes, prevention methods, danger level, recommended pesticides, and any images if available."}
-        ],
-        max_tokens=100
-    )
-    return response.choices[0].message.content
+    prompt = f"Provide comprehensive details about {disease_name}. Include introduction, causes, prevention methods, danger level, recommended pesticides, and any images if available."
+    response = gemini_model.generate_content(prompt)
+    return response.text
 
 def get_healthy_advice():
     """
-    Returns advice on how to maintain healthy crops.
+    Returns advice on how to maintain healthy crops using Gemini API.
     """
-    response = client.chat.completions.create(
-        model="meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo",
-        messages=[
-            {"role": "system", "content": "You are an expert on crop care and agriculture."},
-            {"role": "user", "content": "My crop is healthy. How can I ensure it remains healthy and prevent diseases?"}
-        ],
-        max_tokens=100
-    )
-    return response.choices[0].message.content
+    prompt = "My crop is healthy. How can I ensure it remains healthy and prevent diseases?"
+    response = gemini_model.generate_content(prompt)
+    return response.text
 
 # -----------------------------
 # Flask App & Endpoints
@@ -223,29 +212,25 @@ def healthy_advice():
 def chat():
     """
     Expects a JSON POST request with a "prompt" field.
-    Returns a chat response.
+    Returns a chat response from Gemini.
     """
     data = request.get_json()
     if not data or "prompt" not in data:
         return jsonify({"error": "No prompt provided."}), 400
 
     prompt = data["prompt"]
-    # (For chat we continue to use the same logic as before.)
     system_message = (
         "You are KrishiSahay, an AI assistant specialized in crop management, "
         "crop diseases, healthy plant practices, and crop-related advice. "
         "You will only answer questions related to crops and agriculture."
     )
-    
-    response = client.chat.completions.create(
-        model="meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo",
-        messages=[
-            {"role": "system", "content": system_message},
-            {"role": "user", "content": prompt}
-        ],
-        max_tokens=100
-    )
-    return jsonify({"response": response.choices[0].message.content})
+
+    prompt_with_context = f"{system_message}\nUser: {prompt}"
+    try:
+        response = gemini_model.generate_content(prompt_with_context)
+        return jsonify({"response": response.text})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # -----------------------------
 # Run the App
