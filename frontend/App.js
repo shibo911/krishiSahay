@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
   Text,
@@ -10,18 +10,23 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import { Audio } from "expo-av";
+import * as FileSystem from "expo-file-system";
+import * as Speech from "expo-speech";
 import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 
 const Tab = createBottomTabNavigator();
 
 // Replace with your backend URL (ensure your device/network configuration is correct)
-const BACKEND_URL = "http://192.168.152.101:5000";
+const BACKEND_URL = "http://192.168.126.65:5000";
 
 //
-// DiseasePredictionScreen: Allows the user to pick an image, display it, and call your prediction API.
+// DiseasePredictionScreen: Allows the user to pick an image, capture an image, display it, 
+// and call your prediction API.
 //
 function DiseasePredictionScreen() {
   const [image, setImage] = useState(null);
@@ -55,6 +60,34 @@ function DiseasePredictionScreen() {
       setAdditionalInfo(null);
     } else {
       console.log("No image selected.");
+    }
+  };
+
+  // Capture an image using the device camera
+  const captureImage = async () => {
+    console.log("Requesting camera permissions...");
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    console.log("Camera permission result:", permissionResult);
+    if (!permissionResult.granted) {
+      alert("Permission to access camera is required!");
+      return;
+    }
+
+    console.log("Launching camera...");
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      quality: 1,
+    });
+    console.log("Camera capture result:", result);
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      const uri = result.assets[0].uri;
+      console.log("Captured image URI:", uri);
+      setImage(uri);
+      setPrediction(null);
+      setAdditionalInfo(null);
+    } else {
+      console.log("No image captured.");
     }
   };
 
@@ -106,6 +139,8 @@ function DiseasePredictionScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>KrishiSahay: Crop Disease Prediction</Text>
       <Button title="Pick an Image" onPress={pickImage} />
+      <View style={{ marginVertical: 10 }} />
+      <Button title="Capture an Image" onPress={captureImage} />
       {image && (
         <Image
           source={{ uri: image }}
@@ -122,16 +157,12 @@ function DiseasePredictionScreen() {
       {loading && <ActivityIndicator size="large" color="#2196F3" />}
       {prediction && (
         <View style={{ marginTop: 20 }}>
-          <Text style={styles.predictionText}>
-            Prediction: {prediction}
-          </Text>
+          <Text style={styles.predictionText}>Prediction: {prediction}</Text>
         </View>
       )}
       {additionalInfo && (
         <View style={{ marginTop: 20 }}>
-          <Text style={styles.additionalInfoText}>
-            {additionalInfo}
-          </Text>
+          <Text style={styles.additionalInfoText}>{additionalInfo}</Text>
         </View>
       )}
     </ScrollView>
@@ -140,10 +171,36 @@ function DiseasePredictionScreen() {
 
 //
 // ChatScreen: Provides a chat interface to ask questions about crops.
+// When the AI responds, its text answer is displayed along with a small speaker button (🔊).
+// Clicking the speaker icon will play the audio version of the response if available,
+// otherwise it will read the response aloud using text-to-speech.
+// A mic button is also provided to allow voice recording, which is sent to the backend for processing.
 //
 function ChatScreen() {
   const [messages, setMessages] = useState([]);
   const [userInput, setUserInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [recording, setRecording] = useState(null);
+  const [recordedURI, setRecordedURI] = useState(null);
+  const [isRecording, setIsRecording] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { status } = await Audio.requestPermissionsAsync();
+      if (status !== "granted") {
+        alert("Permission to access microphone is required!");
+      }
+    })();
+  }, []);
+
+  const playAudio = async (audioUri) => {
+    try {
+      const { sound } = await Audio.Sound.createAsync({ uri: audioUri });
+      await sound.playAsync();
+    } catch (err) {
+      console.error("Error playing audio", err);
+    }
+  };
 
   const sendMessage = async () => {
     if (!userInput.trim()) return;
@@ -152,6 +209,7 @@ function ChatScreen() {
     setMessages((prev) => [...prev, newUserMessage]);
     const prompt = userInput;
     setUserInput("");
+    setLoading(true);
 
     try {
       const response = await fetch(`${BACKEND_URL}/chat`, {
@@ -162,11 +220,79 @@ function ChatScreen() {
         body: JSON.stringify({ prompt }),
       });
       const data = await response.json();
-      const botMessage = { role: "assistant", content: data.response };
+      console.log("Chat response:", data);
+
+      // Create a bot message with the text response and optional audio response
+      const botMessage = {
+        role: "assistant",
+        content: data.response,
+        audio: data.audio_response || "",
+      };
       setMessages((prev) => [...prev, botMessage]);
     } catch (error) {
       console.error(error);
       alert("Error sending message");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sendAudioMessage = async (uri) => {
+    setLoading(true);
+    let formData = new FormData();
+    formData.append("audio", {
+      uri: uri,
+      name: "recording.m4a",
+      type: "audio/m4a",
+    });
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/chat`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await response.json();
+      console.log("Audio chat response:", data);
+      const botMessage = {
+        role: "assistant",
+        content: data.response,
+        audio: data.audio_response || "",
+      };
+      setMessages((prev) => [...prev, botMessage]);
+    } catch (error) {
+      console.error(error);
+      alert("Error sending audio message");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const startRecording = async () => {
+    try {
+      setRecordedURI(null);
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RECORDING_OPTIONS_PRESET_HIGH_QUALITY
+      );
+      setRecording(recording);
+      setIsRecording(true);
+      console.log("Recording started");
+    } catch (err) {
+      console.error("Failed to start recording", err);
+    }
+  };
+
+  const stopRecording = async () => {
+    setIsRecording(false);
+    try {
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      console.log("Recording stopped and stored at", uri);
+      setRecordedURI(uri);
+      setRecording(null);
+      // Send the recorded audio to the backend
+      await sendAudioMessage(uri);
+    } catch (error) {
+      console.error("Error stopping recording", error);
     }
   };
 
@@ -180,6 +306,16 @@ function ChatScreen() {
       <Text style={styles.messageText}>
         {item.role === "user" ? "You" : "KrishiSahay"}: {item.content}
       </Text>
+      {item.role === "assistant" && (
+        <TouchableOpacity
+          onPress={() =>
+            item.audio ? playAudio(item.audio) : Speech.speak(item.content)
+          }
+          style={styles.speakerButton}
+        >
+          <Text style={styles.speakerButtonText}>🔊</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 
@@ -202,7 +338,16 @@ function ChatScreen() {
         <TouchableOpacity onPress={sendMessage} style={styles.sendButton}>
           <Text style={styles.sendButtonText}>Send</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          onPress={isRecording ? stopRecording : startRecording}
+          style={styles.micButton}
+        >
+          <Text style={styles.micButtonText}>
+            {isRecording ? "Stop" : "🎤"}
+          </Text>
+        </TouchableOpacity>
       </View>
+      {loading && <ActivityIndicator size="large" color="#2196F3" />}
     </View>
   );
 }
@@ -232,28 +377,31 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     alignItems: "center",
     padding: 20,
-    backgroundColor: "#fff",
+    backgroundColor: "#F0FFF0", // light, earthy background (Honeydew)
   },
   chatContainer: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#F0FFF0",
   },
   title: {
     fontSize: 22,
     fontWeight: "bold",
     marginVertical: 10,
     textAlign: "center",
+    color: "#2E8B57", // sea green for titles
   },
   predictionText: {
     fontSize: 18,
     fontWeight: "600",
     textAlign: "center",
+    color: "#2E8B57",
   },
   additionalInfoText: {
     fontSize: 16,
     fontStyle: "italic",
     textAlign: "center",
     marginTop: 10,
+    color: "#556B2F",
   },
   chatList: {
     flex: 1,
@@ -264,6 +412,8 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 10,
     maxWidth: "80%",
+    flexDirection: "row",
+    alignItems: "center",
   },
   userMessage: {
     alignSelf: "flex-end",
@@ -274,6 +424,17 @@ const styles = StyleSheet.create({
     backgroundColor: "#f1f0f0",
   },
   messageText: {
+    fontSize: 16,
+    flex: 1,
+  },
+  speakerButton: {
+    marginLeft: 5,
+    padding: 5,
+    backgroundColor: "#2E8B57",
+    borderRadius: 20,
+  },
+  speakerButtonText: {
+    color: "#fff",
     fontSize: 16,
   },
   inputContainer: {
@@ -293,12 +454,22 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   sendButton: {
-    backgroundColor: "#2196F3",
+    backgroundColor: "#6B8E23", // olive drab for send button
     padding: 10,
     borderRadius: 20,
   },
   sendButtonText: {
     color: "#fff",
     fontSize: 16,
+  },
+  micButton: {
+    backgroundColor: "#228B22", // forest green for mic button
+    padding: 10,
+    borderRadius: 20,
+    marginLeft: 5,
+  },
+  micButtonText: {
+    color: "#fff",
+    fontSize: 20,
   },
 });
