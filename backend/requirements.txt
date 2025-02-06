@@ -1,6 +1,6 @@
 Flask
-tensorflow          # Use the specific version you need
-keras              # If separate from tensorflow (or just use tf.keras)
-Pillow              # or latest version
+tensorflow
+keras
+Pillow
 numpy
-openai
+google-generativeai

@@ -1,4 +1,5 @@
 import os
+import sys
 import tempfile
 import random
 from flask import Flask, request, jsonify
@@ -9,16 +10,28 @@ from PIL import Image
 import google.generativeai as genai
 
 # -----------------------------
+# Determine the Base Directory for Data Files
+# -----------------------------
+if getattr(sys, 'frozen', False):
+    # Running in a PyInstaller bundle
+    bundle_dir = sys._MEIPASS
+else:
+    # Running in a normal Python process
+    bundle_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Absolute path to the crop_disease_model.h5 relative to the bundle directory
+model_path = os.path.join(bundle_dir, 'crop_disease_model.h5')
+
+# -----------------------------
 # Configuration & Initialization
 # -----------------------------
 # Initialize Gemini API Key and Model
-GEN_AI_API_KEY = "AIzaSyDlXMPgEKz9rySMSPtsgRlyeyoti35xFLU" # Place your API key here
+GEN_AI_API_KEY = "AIzaSyDlXMPgEKz9rySMSPtsgRlyeyoti35xFLU"  # Place your API key here
 genai.configure(api_key=GEN_AI_API_KEY)
 model_name = "gemini-2.0-flash-exp"  # Example, use a different model if needed
 gemini_model = genai.GenerativeModel(model_name)
 
 # Load your pre-trained crop disease model
-model_path = 'crop_disease_model.h5'
 try:
     model_disease = tf.keras.models.load_model(model_path)
     print("Crop disease model loaded successfully.")
@@ -138,7 +151,9 @@ def get_disease_info(disease_name):
     """
     Returns comprehensive details about a specific crop disease using Gemini API.
     """
-    prompt = f"Provide comprehensive details about {disease_name}. Include introduction, causes, prevention methods, danger level, recommended pesticides, and any images if available."
+    prompt = (f"Provide comprehensive details about {disease_name}. "
+              "Include introduction, causes, prevention methods, danger level, "
+              "recommended pesticides, and any images if available.")
     response = gemini_model.generate_content(prompt)
     return response.text
 
