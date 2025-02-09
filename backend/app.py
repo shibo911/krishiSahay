@@ -48,6 +48,7 @@ gemini_model = genai.GenerativeModel(model_name)
 
 GOMAPS_API_KEY = "AlzaSyH0NMUUZXYmHKHNNTNIt99pztmSxlG4NWQ"
 
+# Load plant disease prediction model
 try:
     model_disease = tf.keras.models.load_model(model_path)
     print("Plant disease model loaded successfully.")
@@ -238,7 +239,6 @@ def chat_endpoint():
 # ---------------------------------------------------------------------
 @app.route('/govt_schemes', methods=['GET'])
 def govt_schemes_endpoint():
-    # Get the requested page number; default is 1
     page = request.args.get("page", default="1")
     try:
         page = int(page)
@@ -259,8 +259,6 @@ def govt_schemes_endpoint():
 
     if page > 1:
         try:
-            # Locate the pagination button for the desired page number.
-            # This XPath looks for a <li> element whose text equals the page number.
             page_xpath = f"//ul[contains(@class,'list-none') and contains(@class,'flex')]/li[normalize-space(text())='{page}']"
             page_button = driver.find_element("xpath", page_xpath)
             driver.execute_script("arguments[0].click();", page_button)
@@ -373,6 +371,41 @@ def place_details_endpoint():
         return jsonify(data)
     except Exception as e:
         return jsonify({"error": f"Error fetching place details: {e}"}), 500
+
+# ---------------------------------------------------------------------
+# Weather Forecast Endpoint
+# ---------------------------------------------------------------------
+# Replace with your actual OpenWeatherMap API key
+OPENWEATHER_API_KEY = "8f357a7db28608c3a382d54f22603874"
+
+@app.route('/weather', methods=['GET'])
+def weather_forecast_endpoint():
+    lat = request.args.get("lat")
+    lon = request.args.get("lon")
+    if not lat or not lon:
+        return jsonify({"error": "Latitude and longitude required."}), 400
+    try:
+        lat = float(lat)
+        lon = float(lon)
+    except ValueError:
+        return jsonify({"error": "Invalid coordinates provided."}), 400
+
+    weather_url = "https://api.openweathermap.org/data/2.5/forecast"
+    params = {
+        "lat": lat,
+        "lon": lon,
+        "appid": OPENWEATHER_API_KEY,
+        "units": "metric"  # For Celsius; use "imperial" for Fahrenheit.
+    }
+
+    try:
+        r = requests.get(weather_url, params=params)
+        r.raise_for_status()  # Raises an error for non-200 responses
+        forecast_data = r.json()
+        return jsonify(forecast_data)
+    except Exception as e:
+        print("Error in /weather endpoint:", e)
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/')
 def home():
