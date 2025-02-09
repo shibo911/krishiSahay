@@ -15,22 +15,27 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import { Audio } from "expo-av";
 import * as Speech from "expo-speech";
-import { NavigationContainer } from "@react-navigation/native";
+import * as Location from "expo-location";
+import MapView, { Marker } from "react-native-maps";
+import { NavigationContainer, useNavigation } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 
-const Tab = createBottomTabNavigator();
-
-// Replace with your backend URL (ensure your device/network configuration is correct)
+// Replace with your backend URL
 const BACKEND_URL = "http://172.70.110.142:5000";
 
 //
-// DiseasePredictionScreen: Pick or capture an image, then upload it for prediction.
+// DiseasePredictionScreen: Lets the user pick or capture an image, uploads it for prediction,
+// fetches additional info, and then (silently) gets the recommended store type for remedy products.
+// A button is displayed that navigates to the Store Finder (with the recommended store type) without
+// revealing the recommendation to the user.
 //
 function DiseasePredictionScreen() {
   const [image, setImage] = useState(null);
   const [prediction, setPrediction] = useState(null);
   const [additionalInfo, setAdditionalInfo] = useState(null);
+  const [recommendedStoreType, setRecommendedStoreType] = useState(null);
   const [loading, setLoading] = useState(false);
+  const navigation = useNavigation();
 
   const pickImage = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -48,6 +53,7 @@ function DiseasePredictionScreen() {
       setImage(uri);
       setPrediction(null);
       setAdditionalInfo(null);
+      setRecommendedStoreType(null);
     }
   };
 
@@ -66,6 +72,7 @@ function DiseasePredictionScreen() {
       setImage(uri);
       setPrediction(null);
       setAdditionalInfo(null);
+      setRecommendedStoreType(null);
     }
   };
 
@@ -85,7 +92,8 @@ function DiseasePredictionScreen() {
       });
       const data = await response.json();
       setPrediction(data.predicted_disease);
-      if (data.predicted_disease.includes("Healthy")) {
+      // Fetch additional info based on prediction
+      if (data.predicted_disease.toLowerCase().includes("healthy")) {
         const adviceResponse = await fetch(`${BACKEND_URL}/healthy_advice`);
         const adviceData = await adviceResponse.json();
         setAdditionalInfo(adviceData.advice);
@@ -97,6 +105,16 @@ function DiseasePredictionScreen() {
         );
         const diseaseInfoData = await diseaseInfoResponse.json();
         setAdditionalInfo(diseaseInfoData.disease_info);
+      }
+      // Now, silently fetch the recommended store type for this disease
+      const storeTypeResponse = await fetch(
+        `${BACKEND_URL}/recommended_store_type?disease_name=${encodeURIComponent(
+          data.predicted_disease
+        )}`
+      );
+      const storeTypeData = await storeTypeResponse.json();
+      if (storeTypeData.store_type) {
+        setRecommendedStoreType(storeTypeData.store_type);
       }
     } catch (error) {
       console.error(error);
@@ -128,12 +146,27 @@ function DiseasePredictionScreen() {
       {loading && <ActivityIndicator size="large" color="#2196F3" />}
       {prediction && (
         <View style={{ marginTop: 20 }}>
-          <Text style={styles.predictionText}>Prediction: {prediction}</Text>
+          <Text style={styles.predictionText}>
+            Prediction: {prediction}
+          </Text>
         </View>
       )}
       {additionalInfo && (
         <View style={{ marginTop: 20 }}>
           <Text style={styles.additionalInfoText}>{additionalInfo}</Text>
+        </View>
+      )}
+      {/* The recommended store type is not shown to the user */}
+      {recommendedStoreType && (
+        <View style={{ marginTop: 20 }}>
+          <Button
+            title="Find Local Stores"
+            onPress={() =>
+              navigation.navigate("Store Finder", {
+                storeType: recommendedStoreType,
+              })
+            }
+          />
         </View>
       )}
     </ScrollView>
@@ -142,7 +175,6 @@ function DiseasePredictionScreen() {
 
 //
 // ChatScreen: Chat interface with text and audio messaging.
-// Audio messages are sent to the backend which returns both a transcription and a response.
 //
 function ChatScreen() {
   const [messages, setMessages] = useState([]);
@@ -213,7 +245,6 @@ function ChatScreen() {
         body: formData,
       });
       const data = await response.json();
-      // If a transcription is returned, add it as a user message
       if (data.user_transcription) {
         const userMessage = {
           role: "user",
@@ -321,25 +352,114 @@ function ChatScreen() {
 }
 
 //
-// Main App: Bottom tab navigator for switching between screens.
+// StoreFinderScreen: Uses location services to get the user’s coordinates,
+// accepts an optional recommended store type (passed as "storeType") from navigation,
+// calls the backend /store_finder endpoint (now using GoMaps.pro Text Search API),
+// and displays a map with store markers.
 //
+function StoreFinderScreen({ route }) {
+  const [location, setLocation] = useState(null);
+  const [stores, setStores] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const storeType = route.params?.storeType || null;
+
+  const fetchStores = async (lat, lon) => {
+    setLoading(true);
+    try {
+      const url = storeType
+        ? `${BACKEND_URL}/store_finder?lat=${lat}&lon=${lon}&store_type=${storeType}`
+        : `${BACKEND_URL}/store_finder?lat=${lat}&lon=${lon}`;
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.error) {
+        alert(data.error);
+      } else {
+        setStores(data.stores);
+      }
+    } catch (error) {
+      console.error("Error fetching stores", error);
+      alert("Failed to fetch store data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    (async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        alert("Permission to access location was denied");
+        return;
+      }
+      let loc = await Location.getCurrentPositionAsync({});
+      setLocation(loc.coords);
+      fetchStores(loc.coords.latitude, loc.coords.longitude);
+    })();
+  }, [storeType]);
+
+  if (!location) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#2196F3" />
+        <Text>Fetching your location...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.mapContainer}>
+      <Text style={styles.title}>Local Stores for Your Remedy</Text>
+      <MapView
+        style={styles.map}
+        initialRegion={{
+          latitude: location.latitude,
+          longitude: location.longitude,
+          latitudeDelta: 0.1,
+          longitudeDelta: 0.1,
+        }}
+      >
+        <Marker
+          coordinate={{
+            latitude: location.latitude,
+            longitude: location.longitude,
+          }}
+          title="Your Location"
+          pinColor="blue"
+        />
+        {stores.map((store) => (
+          <Marker
+            key={store.place_id ? store.place_id : store.name}
+            coordinate={{ latitude: store.lat, longitude: store.lon }}
+            title={store.name}
+            description={store.address}
+          />
+        ))}
+      </MapView>
+      {loading && (
+        <ActivityIndicator
+          style={styles.mapLoading}
+          size="large"
+          color="#2196F3"
+        />
+      )}
+    </View>
+  );
+}
+
+const Tab = createBottomTabNavigator();
+
 export default function App() {
   return (
     <NavigationContainer>
       <Tab.Navigator>
-        <Tab.Screen
-          name="Disease Prediction"
-          component={DiseasePredictionScreen}
-        />
+        <Tab.Screen name="Disease Prediction" component={DiseasePredictionScreen} />
         <Tab.Screen name="Chat" component={ChatScreen} />
+        <Tab.Screen name="Store Finder" component={StoreFinderScreen} />
       </Tab.Navigator>
     </NavigationContainer>
   );
 }
 
-//
-// Styles
-//
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
@@ -350,6 +470,9 @@ const styles = StyleSheet.create({
   chatContainer: {
     flex: 1,
     backgroundColor: "#F0FFF0",
+  },
+  mapContainer: {
+    flex: 1,
   },
   title: {
     fontSize: 22,
@@ -439,5 +562,20 @@ const styles = StyleSheet.create({
   micButtonText: {
     color: "#fff",
     fontSize: 20,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  map: {
+    flex: 1,
+  },
+  mapLoading: {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    marginLeft: -18,
+    marginTop: -18,
   },
 });

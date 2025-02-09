@@ -1,6 +1,8 @@
 import os
 import sys
 import tempfile
+import requests  # For HTTP requests (now to GoMaps.pro)
+import urllib.parse
 from flask import Flask, request, jsonify, send_file
 import tensorflow as tf
 import numpy as np
@@ -17,7 +19,7 @@ import base64
 # -----------------------------
 if os.name == 'nt':  # Windows
     # Replace with the actual path to your ffmpeg.exe if necessary
-    AudioSegment.converter = r"C:\ffmpeg-2025-02-06-git-6da82b4485-essentials_build\ffmpeg-2025-02-06-git-6da82b4485-essentials_build\bin\ffmpeg.exe"
+    AudioSegment.converter = r"C:\ffmpeg-2025-02-06-git-6da82b4485-essentials_build\ffmpeg.exe"
 
 # -----------------------------
 # Determine the Base Directory for Data Files
@@ -27,16 +29,15 @@ if getattr(sys, 'frozen', False):
 else:
     bundle_dir = os.path.dirname(os.path.abspath(__file__))
 
-# Absolute path to the plant_disease_prediction_model.h5 relative to the bundle directory
+# Absolute path to the plant disease prediction model
 model_path = os.path.join(bundle_dir, 'plant_disease_prediction_model.h5')
 
 # -----------------------------
 # Configuration & Initialization
 # -----------------------------
-# Initialize Gemini API Key and Model
-GEN_AI_API_KEY = "AIzaSyDlXMPgEKz9rySMSPtsgRlyeyoti35xFLU"  # Replace with your actual API key
+GEN_AI_API_KEY = "AIzaSyDlXMPgEKz9rySMSPtsgRlyeyoti35xFLU"  # Replace with your actual Gemini API key
 genai.configure(api_key=GEN_AI_API_KEY)
-model_name = "gemini-2.0-flash-exp"  # Change if you need a different model
+model_name = "gemini-2.0-flash-exp"  # Change if needed
 gemini_model = genai.GenerativeModel(model_name)
 
 # Load your pre-trained plant disease model
@@ -94,9 +95,6 @@ classes = [
 # Helper Functions
 # -----------------------------
 def load_and_preprocess_image(image_path, target_size=(224, 224)):
-    """
-    Loads and preprocesses the image.
-    """
     img = Image.open(image_path)
     img = img.resize(target_size)
     img_array = np.array(img)
@@ -105,9 +103,6 @@ def load_and_preprocess_image(image_path, target_size=(224, 224)):
     return img_array
 
 def predict_disease(img_path):
-    """
-    Predicts the disease from an image.
-    """
     img_array = load_and_preprocess_image(img_path)
     predictions = model_disease.predict(img_array)
     predicted_class_index = int(np.argmax(predictions, axis=1)[0])
@@ -115,27 +110,18 @@ def predict_disease(img_path):
     return predicted_class_index, predicted_disease
 
 def get_disease_info(disease_name):
-    """
-    Gets comprehensive details about a specific crop disease using Gemini API.
-    """
     prompt = (f"Provide comprehensive details about {disease_name}. "
               "Include introduction, causes, prevention methods, danger level, "
-              "recommended pesticides, and any images if available.")
+              "and recommended pesticides, fertilizers, or herbicides if available.")
     response = gemini_model.generate_content(prompt)
     return response.text
 
 def get_healthy_advice():
-    """
-    Returns advice on how to maintain healthy crops using Gemini API.
-    """
     prompt = "My crop is healthy. How can I ensure it remains healthy and prevent diseases?"
     response = gemini_model.generate_content(prompt)
     return response.text
 
 def transcribe_audio(audio_path):
-    """
-    Transcribes the audio file at audio_path to text.
-    """
     recognizer = sr.Recognizer()
     with sr.AudioFile(audio_path) as source:
         audio_data = recognizer.record(source)
@@ -154,20 +140,13 @@ app = Flask(__name__)
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    """
-    Endpoint for disease prediction. Expects an image file.
-    """
     if "image" not in request.files:
         return jsonify({"error": "No image file provided."}), 400
-
     file = request.files["image"]
     if file.filename == "":
         return jsonify({"error": "No image file provided."}), 400
-
-    # Save file temporarily
     temp_path = os.path.join(tempfile.gettempdir(), file.filename)
     file.save(temp_path)
-
     try:
         predicted_class_index, predicted_disease = predict_disease(temp_path)
         response_data = {
@@ -180,9 +159,6 @@ def predict():
 
 @app.route('/disease_info', methods=['GET'])
 def disease_info():
-    """
-    Returns details about the specified disease.
-    """
     disease_name = request.args.get('disease_name')
     if not disease_name:
         return jsonify({"error": "No disease name provided."}), 400
@@ -194,32 +170,39 @@ def disease_info():
 
 @app.route('/healthy_advice', methods=['GET'])
 def healthy_advice():
-    """
-    Returns healthy crop advice.
-    """
     try:
         advice = get_healthy_advice()
         return jsonify({"advice": advice})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/recommended_store_type', methods=['GET'])
+def recommended_store_type():
+    """
+    For a given disease, ask Gemini API what type of store a farmer should visit
+    to obtain remedy products. The answer is a short text (for example, "fertilizer store").
+    """
+    disease_name = request.args.get("disease_name")
+    if not disease_name:
+        return jsonify({"error": "No disease name provided."}), 400
+    prompt = (f"For the crop disease '{disease_name}', what is the best type of store a farmer "
+              f"should visit to purchase remedy products (such as pesticides, fertilizers, or herbicides)? "
+              f"Provide only a short answer (for example, 'fertilizer store').")
+    try:
+        response = gemini_model.generate_content(prompt)
+        store_type = response.text.strip()
+        return jsonify({"store_type": store_type})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/chat', methods=['POST'])
 def chat():
-    """
-    Chat endpoint accepts either JSON with a "prompt" or a multipart/form-data with an "audio" file.
-    For audio requests, the audio is transcribed and its text returned as a "user_transcription".
-    """
-    # Check if an audio file is provided
     if 'audio' in request.files:
         file = request.files["audio"]
         if file.filename == "":
             return jsonify({"error": "No audio file provided."}), 400
-
-        # Save the uploaded file temporarily
         temp_path = os.path.join(tempfile.gettempdir(), file.filename)
         file.save(temp_path)
-
-        # Convert to WAV if necessary using pydub
         if not file.filename.lower().endswith('.wav'):
             try:
                 sound = AudioSegment.from_file(temp_path)
@@ -230,12 +213,10 @@ def chat():
                 return jsonify({"error": f"Audio conversion error: {e}"}), 500
         else:
             audio_path = temp_path
-
         try:
             prompt = transcribe_audio(audio_path)
         except Exception as e:
             return jsonify({"error": str(e)}), 500
-
         language = request.form.get("language", "en")
         read_aloud = request.form.get("read_aloud", "false").lower() == "true"
     else:
@@ -255,8 +236,6 @@ def chat():
     try:
         response = gemini_model.generate_content(prompt_with_context)
         text_response = response.text
-
-        # Generate audio response if requested
         if read_aloud:
             tts = gTTS(text=text_response, lang=language)
             mp3_fp = BytesIO()
@@ -267,23 +246,78 @@ def chat():
             audio_data_url = f"data:audio/mpeg;base64,{audio_b64}"
         else:
             audio_data_url = ""
-
         result = {
             "response": text_response,
             "audio_response": audio_data_url
         }
-        # If an audio file was provided, include the transcription so it can appear as a user message.
         if 'audio' in request.files:
             result["user_transcription"] = prompt
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# ------------------------------------------------------------------------------
+# New Endpoint: Map-Based Local Store Finder Using GoMaps.pro Text Search API
+# ------------------------------------------------------------------------------
+@app.route('/store_finder', methods=['GET'])
+def store_finder():
+    lat = request.args.get("lat")
+    lon = request.args.get("lon")
+    store_type = request.args.get("store_type")  # e.g., "fertilizer store"
+    if not lat or not lon:
+        return jsonify({"error": "Latitude and longitude required."}), 400
+    try:
+        lat = float(lat)
+        lon = float(lon)
+    except ValueError:
+        return jsonify({"error": "Invalid coordinates provided."}), 400
+
+    # Build the query string. If a recommended store type is provided, use it.
+    if store_type:
+        query = f"{store_type} near me"
+    else:
+        query = "agriculture supply store near me"
+
+    # Create a location bias string: "lat,lon"
+    location_str = f"{lat},{lon}"
+    radius = 50000  # up to 50,000 meters
+
+    # Build the parameters for the GoMaps.pro Text Search API.
+    params = {
+        "query": query,
+        "location": location_str,
+        "radius": radius,
+        "key": "AlzaSyfcloyQHdKevkRd44l5mCDEMkVFV89-M8u"  # <-- Replace with your actual GoMaps.pro API key
+    }
+
+    url = "https://maps.gomaps.pro/maps/api/place/textsearch/json"
+
+    try:
+        r = requests.get(url, params=params)
+        r.raise_for_status()
+        data = r.json()
+        if data.get("status") != "OK":
+            return jsonify({
+                "error": f"GoMaps Places API error: {data.get('status')}",
+                "details": data.get("error_message")
+            }), 500
+        results = data.get("results", [])
+        stores = []
+        for result in results:
+            store = {
+                "name": result.get("name"),
+                "address": result.get("formatted_address"),
+                "lat": result.get("geometry", {}).get("location", {}).get("lat"),
+                "lon": result.get("geometry", {}).get("location", {}).get("lng"),
+                "place_id": result.get("place_id")
+            }
+            stores.append(store)
+        return jsonify({"stores": stores})
+    except Exception as e:
+        return jsonify({"error": f"Error fetching store data: {e}"}), 500
+
 @app.route('/')
 def home():
-    """
-    Simple HTML page for chat.
-    """
     return '''
     <!DOCTYPE html>
     <html>
@@ -301,7 +335,6 @@ def home():
         <textarea id="prompt" rows="4" placeholder="Type your query about crops..."></textarea><br>
         <button onclick="sendPrompt()">Send</button>
         <div id="chat-responses"></div>
-
         <script>
             function sendPrompt() {
                 const prompt = document.getElementById('prompt').value;
@@ -342,9 +375,6 @@ def home():
 
 @app.route('/disease_prediction')
 def disease_prediction():
-    """
-    HTML page to pick or capture an image for disease prediction.
-    """
     return '''
     <!DOCTYPE html>
     <html>
@@ -367,30 +397,25 @@ def disease_prediction():
       <button id="captureButton">Capture</button>
       <canvas id="canvas" width="300" height="200" style="display:none;"></canvas><br>
       <button id="submitCapture" style="display:none;" onclick="submitCapturedImage()">Submit Captured Image</button>
-      
       <div id="result"></div>
-      
       <script>
       const video = document.getElementById('video');
       const canvas = document.getElementById('canvas');
       const captureButton = document.getElementById('captureButton');
       const submitCapture = document.getElementById('submitCapture');
       const resultDiv = document.getElementById('result');
-
       if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
           navigator.mediaDevices.getUserMedia({ video: true }).then(function(stream) {
               video.srcObject = stream;
               video.play();
           });
       }
-
       captureButton.addEventListener('click', function() {
           const context = canvas.getContext('2d');
           context.drawImage(video, 0, 0, canvas.width, canvas.height);
           canvas.style.display = 'block';
           submitCapture.style.display = 'inline-block';
       });
-
       function submitCapturedImage() {
           canvas.toBlob(function(blob) {
               const formData = new FormData();
@@ -408,7 +433,6 @@ def disease_prediction():
               });
           }, 'image/png');
       }
-
       function uploadImage() {
           const fileInput = document.getElementById('imageFile');
           if(fileInput.files.length === 0) {
