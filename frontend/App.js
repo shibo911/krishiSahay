@@ -11,6 +11,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Modal,
+  Linking
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { Audio } from "expo-av";
@@ -19,16 +20,14 @@ import * as Location from "expo-location";
 import MapView, { Marker, Callout } from "react-native-maps";
 import { NavigationContainer, useNavigation } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { createStackNavigator } from "@react-navigation/stack";
 
 // Replace with your backend URL
 const BACKEND_URL = "http://172.70.110.142:5000";
 
-//
-// DiseasePredictionScreen: Lets the user pick or capture an image, uploads it for prediction,
-// fetches additional info, and then (silently) gets the recommended store type for remedy products.
-// A button is displayed that navigates to the Store Finder (with the recommended store type) without
-// revealing the recommendation to the user.
-//
+/* =======================================================
+   DiseasePredictionScreen
+======================================================= */
 function DiseasePredictionScreen() {
   const [image, setImage] = useState(null);
   const [prediction, setPrediction] = useState(null);
@@ -92,7 +91,6 @@ function DiseasePredictionScreen() {
       });
       const data = await response.json();
       setPrediction(data.predicted_disease);
-      // Fetch additional info based on prediction
       if (data.predicted_disease.toLowerCase().includes("healthy")) {
         const adviceResponse = await fetch(`${BACKEND_URL}/healthy_advice`);
         const adviceData = await adviceResponse.json();
@@ -106,7 +104,6 @@ function DiseasePredictionScreen() {
         const diseaseInfoData = await diseaseInfoResponse.json();
         setAdditionalInfo(diseaseInfoData.disease_info);
       }
-      // Now, silently fetch the recommended store type for this disease
       const storeTypeResponse = await fetch(
         `${BACKEND_URL}/recommended_store_type?disease_name=${encodeURIComponent(
           data.predicted_disease
@@ -146,9 +143,7 @@ function DiseasePredictionScreen() {
       {loading && <ActivityIndicator size="large" color="#2196F3" />}
       {prediction && (
         <View style={{ marginTop: 20 }}>
-          <Text style={styles.predictionText}>
-            Prediction: {prediction}
-          </Text>
+          <Text style={styles.predictionText}>Prediction: {prediction}</Text>
         </View>
       )}
       {additionalInfo && (
@@ -156,7 +151,6 @@ function DiseasePredictionScreen() {
           <Text style={styles.additionalInfoText}>{additionalInfo}</Text>
         </View>
       )}
-      {/* The recommended store type is kept hidden; only the "Find Local Stores" button is shown */}
       {recommendedStoreType && (
         <View style={{ marginTop: 20 }}>
           <Button
@@ -173,9 +167,9 @@ function DiseasePredictionScreen() {
   );
 }
 
-//
-// ChatScreen: Chat interface with text and audio messaging.
-//
+/* =======================================================
+   ChatScreen
+======================================================= */
 function ChatScreen() {
   const [messages, setMessages] = useState([]);
   const [userInput, setUserInput] = useState("");
@@ -211,9 +205,7 @@ function ChatScreen() {
     try {
       const response = await fetch(`${BACKEND_URL}/chat`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt, read_aloud: true, language: "en" }),
       });
       const data = await response.json();
@@ -246,10 +238,7 @@ function ChatScreen() {
       });
       const data = await response.json();
       if (data.user_transcription) {
-        const userMessage = {
-          role: "user",
-          content: data.user_transcription,
-        };
+        const userMessage = { role: "user", content: data.user_transcription };
         setMessages((prev) => [...prev, userMessage]);
       }
       const botMessage = {
@@ -351,12 +340,75 @@ function ChatScreen() {
   );
 }
 
-//
-// StoreFinderScreen: Uses location services to get the user’s coordinates,
-// calls the backend /store_finder endpoint (which now uses GoMaps.pro Text Search API),
-// and displays a map with markers for each store. Tapping a marker’s callout fetches
-// additional details (via /place_details) and shows them in a modal.
-//
+/* =======================================================
+   GovernmentSchemesScreen: Fetches and displays government schemes.
+======================================================= */
+function GovernmentSchemesScreen() {
+  const [schemes, setSchemes] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchSchemes = async () => {
+      try {
+        const response = await fetch(`${BACKEND_URL}/govt_schemes`);
+        const data = await response.json();
+        console.log("Schemes received:", data.schemes);
+        setSchemes(data.schemes);
+      } catch (error) {
+        console.error("Error fetching schemes", error);
+        alert("Error fetching government schemes");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSchemes();
+  }, []);
+
+  const openLink = (url) => {
+    Linking.openURL(url);
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#2196F3" />
+        <Text>Loading Government Schemes...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <FlatList
+      data={schemes}
+      keyExtractor={(item, index) => index.toString()}
+      contentContainerStyle={styles.container}
+      renderItem={({ item }) => (
+        <View style={styles.card}>
+          <Text style={styles.schemeTitle}>{item.title}</Text>
+          {item.ministry && (
+            <Text style={styles.schemeDescription}>{item.ministry}</Text>
+          )}
+          {item.description ? (
+            <Text style={styles.schemeDescription}>{item.description}</Text>
+          ) : null}
+          {item.link && (
+            <TouchableOpacity
+              style={styles.applyButton}
+              onPress={() => openLink(item.link)}
+            >
+              <Text style={styles.applyButtonText}>Apply Now</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+    />
+  );
+}
+
+/* =======================================================
+   StoreFinderScreen: Uses location services to get the user’s coordinates,
+   calls the backend /store_finder endpoint, and displays a map with markers.
+======================================================= */
 function StoreFinderScreen({ route }) {
   const [location, setLocation] = useState(null);
   const [stores, setStores] = useState([]);
@@ -395,7 +447,7 @@ function StoreFinderScreen({ route }) {
       if (data.error) {
         alert(data.error);
       } else {
-        setStoreDetails(data.result); // Assuming the details are under the "result" key.
+        setStoreDetails(data.result);
       }
     } catch (error) {
       console.error("Error fetching store details", error);
@@ -405,7 +457,6 @@ function StoreFinderScreen({ route }) {
 
   const handleMarkerPress = (store) => {
     setSelectedStore(store);
-    // Fetch additional details using the place_id if available.
     if (store.place_id) {
       fetchStoreDetails(store.place_id);
     }
@@ -473,14 +524,8 @@ function StoreFinderScreen({ route }) {
         ))}
       </MapView>
       {loading && (
-        <ActivityIndicator
-          style={styles.mapLoading}
-          size="large"
-          color="#2196F3"
-        />
+        <ActivityIndicator style={styles.mapLoading} size="large" color="#2196F3" />
       )}
-
-      {/* Modal for displaying store details */}
       <Modal
         visible={modalVisible}
         transparent={true}
@@ -519,7 +564,13 @@ function StoreFinderScreen({ route }) {
                       ))}
                     </>
                   )}
-                <Button title="Close" onPress={() => { setModalVisible(false); setStoreDetails(null); }} />
+                <Button
+                  title="Close"
+                  onPress={() => {
+                    setModalVisible(false);
+                    setStoreDetails(null);
+                  }}
+                />
               </>
             ) : (
               <ActivityIndicator size="large" color="#2196F3" />
@@ -531,20 +582,36 @@ function StoreFinderScreen({ route }) {
   );
 }
 
+/* =======================================================
+   Navigation Setup
+======================================================= */
 const Tab = createBottomTabNavigator();
+const Stack = createStackNavigator();
+
+function MainTabs() {
+  return (
+    <Tab.Navigator>
+      <Tab.Screen name="Disease Prediction" component={DiseasePredictionScreen} />
+      <Tab.Screen name="Chat" component={ChatScreen} />
+      <Tab.Screen name="Schemes" component={GovernmentSchemesScreen} />
+    </Tab.Navigator>
+  );
+}
 
 export default function App() {
   return (
     <NavigationContainer>
-      <Tab.Navigator>
-        <Tab.Screen name="Disease Prediction" component={DiseasePredictionScreen} />
-        <Tab.Screen name="Chat" component={ChatScreen} />
-        <Tab.Screen name="Store Finder" component={StoreFinderScreen} />
-      </Tab.Navigator>
+      <Stack.Navigator>
+        <Stack.Screen name="Home" component={MainTabs} options={{ headerShown: false }} />
+        <Stack.Screen name="Store Finder" component={StoreFinderScreen} />
+      </Stack.Navigator>
     </NavigationContainer>
   );
 }
 
+/* =======================================================
+   Styles
+======================================================= */
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
@@ -683,5 +750,35 @@ const styles = StyleSheet.create({
   modalText: {
     fontSize: 16,
     marginBottom: 5,
+  },
+  // Styles for Government Schemes Screen
+  card: {
+    backgroundColor: "#fff",
+    padding: 15,
+    marginBottom: 10,
+    borderRadius: 8,
+    width: "100%",
+    elevation: 2,
+  },
+  schemeTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#2E8B57",
+  },
+  schemeDescription: {
+    fontSize: 16,
+    marginTop: 5,
+    color: "#333",
+  },
+  applyButton: {
+    backgroundColor: "#6B8E23",
+    padding: 10,
+    marginTop: 10,
+    borderRadius: 5,
+    alignItems: "center",
+  },
+  applyButtonText: {
+    color: "#fff",
+    fontSize: 16,
   },
 });

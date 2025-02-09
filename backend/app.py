@@ -1,8 +1,10 @@
 import os
 import sys
 import tempfile
-import requests  # For HTTP requests (now to GoMaps.pro)
+import requests
 import urllib.parse
+import time
+import base64
 from flask import Flask, request, jsonify, send_file
 import tensorflow as tf
 import numpy as np
@@ -12,7 +14,11 @@ import speech_recognition as sr
 from pydub import AudioSegment
 from io import BytesIO
 from gtts import gTTS
-import base64
+from bs4 import BeautifulSoup
+
+# Selenium imports for dynamic page rendering
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 
 # -----------------------------
 # Set ffmpeg path for pydub (if needed)
@@ -182,10 +188,6 @@ def healthy_advice_endpoint():
 
 @app.route('/recommended_store_type', methods=['GET'])
 def recommended_store_type_endpoint():
-    """
-    For a given disease, ask Gemini API what type of store a farmer should visit
-    to obtain remedy products. The answer is a short text (for example, "fertilizer store").
-    """
     disease_name = request.args.get("disease_name")
     if not disease_name:
         return jsonify({"error": "No disease name provided."}), 400
@@ -261,13 +263,75 @@ def chat_endpoint():
         return jsonify({"error": str(e)}), 500
 
 # ---------------------------------------------------------------------
+# Government Schemes Scraping Endpoint using Selenium
+# ---------------------------------------------------------------------
+@app.route('/govt_schemes', methods=['GET'])
+def govt_schemes_endpoint():
+    """
+    This endpoint uses Selenium to fully render the page (including JavaScript)
+    and then uses BeautifulSoup to scrape the scheme cards.
+    """
+    target_url = "https://www.myscheme.gov.in/search/category/Agriculture,Rural%20&%20Environment"
+    
+    # Set up Selenium options for headless Chrome
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--no-sandbox")
+    
+    # Initialize the WebDriver (ensure chromedriver is in your PATH)
+    driver = webdriver.Chrome(options=chrome_options)
+    driver.get(target_url)
+    # Wait for the page to load (adjust sleep time as necessary)
+    time.sleep(5)
+    
+    # Retrieve the fully rendered HTML and close the browser
+    html = driver.page_source
+    driver.quit()
+    
+    # Debug: Print first 500 characters of HTML
+    print("DEBUG: Rendered HTML content starts with:", html[:500])
+    
+    soup = BeautifulSoup(html, "html.parser")
+    
+    # Find candidate cards – based on your snippet, scheme cards are in divs with class "flex flex-col"
+    candidate_cards = soup.find_all("div", class_="flex flex-col")
+    print("DEBUG: Found", len(candidate_cards), "candidate cards.")
+    
+    schemes = []
+    base_url = "https://www.myscheme.gov.in"
+    
+    # Filter for cards that contain an <a> tag whose href starts with "/schemes/"
+    for card in candidate_cards:
+        a_tag = card.find("a", href=True)
+        if a_tag and a_tag.get("href", "").startswith("/schemes/"):
+            title = a_tag.get_text(strip=True)
+            relative_link = a_tag.get("href")
+            link = urllib.parse.urljoin(base_url, relative_link)
+            # The ministry may be in the second <h2> element if available
+            h2_tags = card.find_all("h2")
+            ministry = h2_tags[1].get_text(strip=True) if len(h2_tags) > 1 else ""
+            # The description is in a span with a class containing "line-clamp"
+            description_tag = card.find("span", class_=lambda v: v and "line-clamp" in v)
+            description = description_tag.get_text(strip=True) if description_tag else ""
+            schemes.append({
+                "title": title,
+                "link": link,
+                "ministry": ministry,
+                "description": description
+            })
+    
+    print("DEBUG: Extracted", len(schemes), "schemes.")
+    return jsonify({"schemes": schemes})
+
+# ---------------------------------------------------------------------
 # Store Finder Using GoMaps.pro Text Search API
 # ---------------------------------------------------------------------
 @app.route('/store_finder', methods=['GET'])
 def store_finder_endpoint():
     lat = request.args.get("lat")
     lon = request.args.get("lon")
-    store_type = request.args.get("store_type")  # e.g., "fertilizer store"
+    store_type = request.args.get("store_type")
     if not lat or not lon:
         return jsonify({"error": "Latitude and longitude required."}), 400
     try:
@@ -276,20 +340,15 @@ def store_finder_endpoint():
     except ValueError:
         return jsonify({"error": "Invalid coordinates provided."}), 400
 
-    # Build the query string using the store_type if available.
-    if store_type:
-        query = f"{store_type} near me"
-    else:
-        query = "agriculture supply store near me"
-
+    query = f"{store_type} near me" if store_type else "agriculture supply store near me"
     location_str = f"{lat},{lon}"
-    radius = 50000  # up to 50,000 meters
+    radius = 50000
 
     params = {
         "query": query,
         "location": location_str,
         "radius": radius,
-        "key": GOMAPS_API_KEY  # Using the hard-coded API key
+        "key": GOMAPS_API_KEY
     }
 
     url = "https://maps.gomaps.pro/maps/api/place/textsearch/json"
@@ -319,7 +378,7 @@ def store_finder_endpoint():
         return jsonify({"error": f"Error fetching store data: {e}"}), 500
 
 # ---------------------------------------------------------------------
-# Place Details (for extra store info)
+# Place Details Endpoint
 # ---------------------------------------------------------------------
 @app.route('/place_details', methods=['GET'])
 def place_details_endpoint():
@@ -482,8 +541,5 @@ def disease_prediction_html():
     </html>
     '''
 
-# -----------------------------
-# Run the App
-# -----------------------------
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
