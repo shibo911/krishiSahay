@@ -35,10 +35,14 @@ model_path = os.path.join(bundle_dir, 'plant_disease_prediction_model.h5')
 # -----------------------------
 # Configuration & Initialization
 # -----------------------------
-GEN_AI_API_KEY = "AIzaSyDlXMPgEKz9rySMSPtsgRlyeyoti35xFLU"  # Replace with your actual Gemini API key
+# Use the provided Gemini API key
+GEN_AI_API_KEY = "AIzaSyDlXMPgEKz9rySMSPtsgRlyeyoti35xFLU"
 genai.configure(api_key=GEN_AI_API_KEY)
 model_name = "gemini-2.0-flash-exp"  # Change if needed
 gemini_model = genai.GenerativeModel(model_name)
+
+# Use the provided GoMaps API key for store finder endpoints
+GOMAPS_API_KEY = "AlzaSyH0NMUUZXYmHKHNNTNIt99pztmSxlG4NWQ"
 
 # Load your pre-trained plant disease model
 try:
@@ -139,7 +143,7 @@ def transcribe_audio(audio_path):
 app = Flask(__name__)
 
 @app.route('/predict', methods=['POST'])
-def predict():
+def predict_endpoint():
     if "image" not in request.files:
         return jsonify({"error": "No image file provided."}), 400
     file = request.files["image"]
@@ -158,7 +162,7 @@ def predict():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/disease_info', methods=['GET'])
-def disease_info():
+def disease_info_endpoint():
     disease_name = request.args.get('disease_name')
     if not disease_name:
         return jsonify({"error": "No disease name provided."}), 400
@@ -169,7 +173,7 @@ def disease_info():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/healthy_advice', methods=['GET'])
-def healthy_advice():
+def healthy_advice_endpoint():
     try:
         advice = get_healthy_advice()
         return jsonify({"advice": advice})
@@ -177,7 +181,7 @@ def healthy_advice():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/recommended_store_type', methods=['GET'])
-def recommended_store_type():
+def recommended_store_type_endpoint():
     """
     For a given disease, ask Gemini API what type of store a farmer should visit
     to obtain remedy products. The answer is a short text (for example, "fertilizer store").
@@ -196,7 +200,7 @@ def recommended_store_type():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/chat', methods=['POST'])
-def chat():
+def chat_endpoint():
     if 'audio' in request.files:
         file = request.files["audio"]
         if file.filename == "":
@@ -256,11 +260,11 @@ def chat():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# ------------------------------------------------------------------------------
-# New Endpoint: Map-Based Local Store Finder Using GoMaps.pro Text Search API
-# ------------------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# Store Finder Using GoMaps.pro Text Search API
+# ---------------------------------------------------------------------
 @app.route('/store_finder', methods=['GET'])
-def store_finder():
+def store_finder_endpoint():
     lat = request.args.get("lat")
     lon = request.args.get("lon")
     store_type = request.args.get("store_type")  # e.g., "fertilizer store"
@@ -272,22 +276,20 @@ def store_finder():
     except ValueError:
         return jsonify({"error": "Invalid coordinates provided."}), 400
 
-    # Build the query string. If a recommended store type is provided, use it.
+    # Build the query string using the store_type if available.
     if store_type:
         query = f"{store_type} near me"
     else:
         query = "agriculture supply store near me"
 
-    # Create a location bias string: "lat,lon"
     location_str = f"{lat},{lon}"
     radius = 50000  # up to 50,000 meters
 
-    # Build the parameters for the GoMaps.pro Text Search API.
     params = {
         "query": query,
         "location": location_str,
         "radius": radius,
-        "key": "AlzaSyfcloyQHdKevkRd44l5mCDEMkVFV89-M8u"  # <-- Replace with your actual GoMaps.pro API key
+        "key": GOMAPS_API_KEY  # Using the hard-coded API key
     }
 
     url = "https://maps.gomaps.pro/maps/api/place/textsearch/json"
@@ -299,7 +301,7 @@ def store_finder():
         if data.get("status") != "OK":
             return jsonify({
                 "error": f"GoMaps Places API error: {data.get('status')}",
-                "details": data.get("error_message")
+                "details": data.get("error_message", "No additional details provided")
             }), 500
         results = data.get("results", [])
         stores = []
@@ -315,6 +317,28 @@ def store_finder():
         return jsonify({"stores": stores})
     except Exception as e:
         return jsonify({"error": f"Error fetching store data: {e}"}), 500
+
+# ---------------------------------------------------------------------
+# Place Details (for extra store info)
+# ---------------------------------------------------------------------
+@app.route('/place_details', methods=['GET'])
+def place_details_endpoint():
+    place_id = request.args.get("place_id")
+    if not place_id:
+        return jsonify({"error": "No place_id provided"}), 400
+    url = f"https://maps.gomaps.pro/maps/api/place/details/json?place_id={urllib.parse.quote(place_id)}&key={GOMAPS_API_KEY}"
+    try:
+        r = requests.get(url)
+        r.raise_for_status()
+        data = r.json()
+        if data.get("status") != "OK":
+            return jsonify({
+                "error": f"GoMaps Place Details API error: {data.get('status')}",
+                "details": data.get("error_message", "No additional details provided")
+            }), 500
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": f"Error fetching place details: {e}"}), 500
 
 @app.route('/')
 def home():
@@ -374,7 +398,7 @@ def home():
     '''
 
 @app.route('/disease_prediction')
-def disease_prediction():
+def disease_prediction_html():
     return '''
     <!DOCTYPE html>
     <html>

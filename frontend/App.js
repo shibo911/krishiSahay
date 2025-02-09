@@ -10,13 +10,13 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  Platform,
+  Modal,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { Audio } from "expo-av";
 import * as Speech from "expo-speech";
 import * as Location from "expo-location";
-import MapView, { Marker } from "react-native-maps";
+import MapView, { Marker, Callout } from "react-native-maps";
 import { NavigationContainer, useNavigation } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 
@@ -156,7 +156,7 @@ function DiseasePredictionScreen() {
           <Text style={styles.additionalInfoText}>{additionalInfo}</Text>
         </View>
       )}
-      {/* The recommended store type is not shown to the user */}
+      {/* The recommended store type is kept hidden; only the "Find Local Stores" button is shown */}
       {recommendedStoreType && (
         <View style={{ marginTop: 20 }}>
           <Button
@@ -353,14 +353,17 @@ function ChatScreen() {
 
 //
 // StoreFinderScreen: Uses location services to get the user’s coordinates,
-// accepts an optional recommended store type (passed as "storeType") from navigation,
-// calls the backend /store_finder endpoint (now using GoMaps.pro Text Search API),
-// and displays a map with store markers.
+// calls the backend /store_finder endpoint (which now uses GoMaps.pro Text Search API),
+// and displays a map with markers for each store. Tapping a marker’s callout fetches
+// additional details (via /place_details) and shows them in a modal.
 //
 function StoreFinderScreen({ route }) {
   const [location, setLocation] = useState(null);
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [selectedStore, setSelectedStore] = useState(null);
+  const [storeDetails, setStoreDetails] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
   const storeType = route.params?.storeType || null;
 
   const fetchStores = async (lat, lon) => {
@@ -382,6 +385,31 @@ function StoreFinderScreen({ route }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchStoreDetails = async (place_id) => {
+    try {
+      const url = `${BACKEND_URL}/place_details?place_id=${encodeURIComponent(place_id)}`;
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.error) {
+        alert(data.error);
+      } else {
+        setStoreDetails(data.result); // Assuming the details are under the "result" key.
+      }
+    } catch (error) {
+      console.error("Error fetching store details", error);
+      alert("Failed to fetch store details");
+    }
+  };
+
+  const handleMarkerPress = (store) => {
+    setSelectedStore(store);
+    // Fetch additional details using the place_id if available.
+    if (store.place_id) {
+      fetchStoreDetails(store.place_id);
+    }
+    setModalVisible(true);
   };
 
   useEffect(() => {
@@ -432,7 +460,16 @@ function StoreFinderScreen({ route }) {
             coordinate={{ latitude: store.lat, longitude: store.lon }}
             title={store.name}
             description={store.address}
-          />
+            onPress={() => handleMarkerPress(store)}
+          >
+            <Callout onPress={() => handleMarkerPress(store)}>
+              <View style={{ width: 200 }}>
+                <Text style={{ fontWeight: "bold" }}>{store.name}</Text>
+                <Text>{store.address}</Text>
+                <Text style={{ color: "blue", marginTop: 5 }}>View Details</Text>
+              </View>
+            </Callout>
+          </Marker>
         ))}
       </MapView>
       {loading && (
@@ -442,6 +479,54 @@ function StoreFinderScreen({ route }) {
           color="#2196F3"
         />
       )}
+
+      {/* Modal for displaying store details */}
+      <Modal
+        visible={modalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => {
+          setModalVisible(false);
+          setStoreDetails(null);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            {storeDetails ? (
+              <>
+                <Text style={styles.modalTitle}>{storeDetails.name}</Text>
+                <Text style={styles.modalText}>{storeDetails.formatted_address}</Text>
+                {storeDetails.formatted_phone_number && (
+                  <Text style={styles.modalText}>
+                    Phone: {storeDetails.formatted_phone_number}
+                  </Text>
+                )}
+                {storeDetails.website && (
+                  <Text style={styles.modalText}>
+                    Website: {storeDetails.website}
+                  </Text>
+                )}
+                {storeDetails.opening_hours &&
+                  storeDetails.opening_hours.weekday_text && (
+                    <>
+                      <Text style={[styles.modalText, { marginTop: 10 }]}>
+                        Opening Hours:
+                      </Text>
+                      {storeDetails.opening_hours.weekday_text.map((line, index) => (
+                        <Text key={index} style={styles.modalText}>
+                          {line}
+                        </Text>
+                      ))}
+                    </>
+                  )}
+                <Button title="Close" onPress={() => { setModalVisible(false); setStoreDetails(null); }} />
+              </>
+            ) : (
+              <ActivityIndicator size="large" color="#2196F3" />
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -577,5 +662,26 @@ const styles = StyleSheet.create({
     left: "50%",
     marginLeft: -18,
     marginTop: -18,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    width: "85%",
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
+  modalText: {
+    fontSize: 16,
+    marginBottom: 5,
   },
 });
