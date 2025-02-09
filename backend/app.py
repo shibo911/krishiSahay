@@ -16,14 +16,14 @@ from io import BytesIO
 from gtts import gTTS
 from bs4 import BeautifulSoup
 
-# Selenium imports for dynamic page rendering
+# Selenium imports for dynamic page rendering and interaction
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 
 # -----------------------------
 # Set ffmpeg path for pydub (if needed)
 # -----------------------------
-if os.name == 'nt':  # Windows
+if os.name == 'nt':
     # Replace with the actual path to your ffmpeg.exe if necessary
     AudioSegment.converter = r"C:\ffmpeg-2025-02-06-git-6da82b4485-essentials_build\ffmpeg.exe"
 
@@ -41,64 +41,35 @@ model_path = os.path.join(bundle_dir, 'plant_disease_prediction_model.h5')
 # -----------------------------
 # Configuration & Initialization
 # -----------------------------
-# Use the provided Gemini API key
 GEN_AI_API_KEY = "AIzaSyDlXMPgEKz9rySMSPtsgRlyeyoti35xFLU"
 genai.configure(api_key=GEN_AI_API_KEY)
 model_name = "gemini-2.0-flash-exp"  # Change if needed
 gemini_model = genai.GenerativeModel(model_name)
 
-# Use the provided GoMaps API key for store finder endpoints
 GOMAPS_API_KEY = "AlzaSyH0NMUUZXYmHKHNNTNIt99pztmSxlG4NWQ"
 
-# Load your pre-trained plant disease model
 try:
     model_disease = tf.keras.models.load_model(model_path)
     print("Plant disease model loaded successfully.")
 except Exception as e:
     print(f"Error loading model: {e}")
 
-# -----------------------------
-# Classes List
-# -----------------------------
 classes = [
-    'Apple___Apple_scab',
-    'Apple___Black_rot',
-    'Apple___Cedar_apple_rust',
-    'Apple___healthy',
-    'Blueberry___healthy',
-    'Cherry_(including_sour)___Powdery_mildew',
-    'Cherry_(including_sour)___healthy',
-    'Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot',
-    'Corn_(maize)___Common_rust_',
-    'Corn_(maize)___Northern_Leaf_Blight',
-    'Corn_(maize)___healthy',
-    'Grape___Black_rot',
-    'Grape___Esca_(Black_Measles)',
-    'Grape___Leaf_blight_(Isariopsis_Leaf_Spot)',
-    'Grape___healthy',
-    'Orange___Haunglongbing_(Citrus_greening)',
-    'Peach___Bacterial_spot',
-    'Peach___healthy',
-    'Pepper,_bell___Bacterial_spot',
-    'Pepper,_bell___healthy',
-    'Potato___Early_blight',
-    'Potato___Late_blight',
-    'Potato___healthy',
-    'Raspberry___healthy',
-    'Soybean___healthy',
-    'Squash___Powdery_mildew',
-    'Strawberry___Leaf_scorch',
-    'Strawberry___healthy',
-    'Tomato___Bacterial_spot',
-    'Tomato___Early_blight',
-    'Tomato___Late_blight',
-    'Tomato___Leaf_Mold',
-    'Tomato___Septoria_leaf_spot',
-    'Tomato___Spider_mites Two-spotted_spider_mite',
-    'Tomato___Target_Spot',
-    'Tomato___Tomato_Yellow_Leaf_Curl_Virus',
-    'Tomato___Tomato_mosaic_virus',
-    'Tomato___healthy'
+    'Apple___Apple_scab', 'Apple___Black_rot', 'Apple___Cedar_apple_rust',
+    'Apple___healthy', 'Blueberry___healthy', 'Cherry_(including_sour)___Powdery_mildew',
+    'Cherry_(including_sour)___healthy', 'Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot',
+    'Corn_(maize)___Common_rust_', 'Corn_(maize)___Northern_Leaf_Blight',
+    'Corn_(maize)___healthy', 'Grape___Black_rot', 'Grape___Esca_(Black_Measles)',
+    'Grape___Leaf_blight_(Isariopsis_Leaf_Spot)', 'Grape___healthy',
+    'Orange___Haunglongbing_(Citrus_greening)', 'Peach___Bacterial_spot',
+    'Peach___healthy', 'Pepper,_bell___Bacterial_spot', 'Pepper,_bell___healthy',
+    'Potato___Early_blight', 'Potato___Late_blight', 'Potato___healthy',
+    'Raspberry___healthy', 'Soybean___healthy', 'Squash___Powdery_mildew',
+    'Strawberry___Leaf_scorch', 'Strawberry___healthy', 'Tomato___Bacterial_spot',
+    'Tomato___Early_blight', 'Tomato___Late_blight', 'Tomato___Leaf_Mold',
+    'Tomato___Septoria_leaf_spot', 'Tomato___Spider_mites Two-spotted_spider_mite',
+    'Tomato___Target_Spot', 'Tomato___Tomato_Yellow_Leaf_Curl_Virus',
+    'Tomato___Tomato_mosaic_virus', 'Tomato___healthy'
 ]
 
 # -----------------------------
@@ -109,7 +80,7 @@ def load_and_preprocess_image(image_path, target_size=(224, 224)):
     img = img.resize(target_size)
     img_array = np.array(img)
     img_array = np.expand_dims(img_array, axis=0)
-    img_array = img_array.astype('float32') / 255.0  # Normalize
+    img_array = img_array.astype('float32') / 255.0
     return img_array
 
 def predict_disease(img_path):
@@ -263,55 +234,60 @@ def chat_endpoint():
         return jsonify({"error": str(e)}), 500
 
 # ---------------------------------------------------------------------
-# Government Schemes Scraping Endpoint using Selenium
+# Government Schemes Scraping Endpoint with Pagination
 # ---------------------------------------------------------------------
 @app.route('/govt_schemes', methods=['GET'])
 def govt_schemes_endpoint():
-    """
-    This endpoint uses Selenium to fully render the page (including JavaScript)
-    and then uses BeautifulSoup to scrape the scheme cards.
-    """
+    # Get the requested page number; default is 1
+    page = request.args.get("page", default="1")
+    try:
+        page = int(page)
+    except:
+        page = 1
+
     target_url = "https://www.myscheme.gov.in/search/category/Agriculture,Rural%20&%20Environment"
+    headers = {"User-Agent": "Mozilla/5.0 (compatible; MyScraper/1.0; +http://yourwebsite.com)"}
     
-    # Set up Selenium options for headless Chrome
     chrome_options = Options()
     chrome_options.add_argument("--headless")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--no-sandbox")
     
-    # Initialize the WebDriver (ensure chromedriver is in your PATH)
     driver = webdriver.Chrome(options=chrome_options)
     driver.get(target_url)
-    # Wait for the page to load (adjust sleep time as necessary)
-    time.sleep(5)
-    
-    # Retrieve the fully rendered HTML and close the browser
+    time.sleep(5)  # Wait for the initial load
+
+    if page > 1:
+        try:
+            # Locate the pagination button for the desired page number.
+            # This XPath looks for a <li> element whose text equals the page number.
+            page_xpath = f"//ul[contains(@class,'list-none') and contains(@class,'flex')]/li[normalize-space(text())='{page}']"
+            page_button = driver.find_element("xpath", page_xpath)
+            driver.execute_script("arguments[0].click();", page_button)
+            time.sleep(3)  # Wait for the new page content to load
+        except Exception as e:
+            print(f"DEBUG: Could not navigate to page {page}: {e}")
+            driver.quit()
+            return jsonify({"schemes": []})
+
     html = driver.page_source
     driver.quit()
-    
-    # Debug: Print first 500 characters of HTML
-    print("DEBUG: Rendered HTML content starts with:", html[:500])
+    print(f"DEBUG: Loaded page {page}, HTML length: {len(html)}")
     
     soup = BeautifulSoup(html, "html.parser")
-    
-    # Find candidate cards – based on your snippet, scheme cards are in divs with class "flex flex-col"
     candidate_cards = soup.find_all("div", class_="flex flex-col")
-    print("DEBUG: Found", len(candidate_cards), "candidate cards.")
+    print(f"DEBUG: Page {page} - Found {len(candidate_cards)} candidate cards.")
     
     schemes = []
     base_url = "https://www.myscheme.gov.in"
-    
-    # Filter for cards that contain an <a> tag whose href starts with "/schemes/"
     for card in candidate_cards:
         a_tag = card.find("a", href=True)
         if a_tag and a_tag.get("href", "").startswith("/schemes/"):
             title = a_tag.get_text(strip=True)
             relative_link = a_tag.get("href")
             link = urllib.parse.urljoin(base_url, relative_link)
-            # The ministry may be in the second <h2> element if available
             h2_tags = card.find_all("h2")
             ministry = h2_tags[1].get_text(strip=True) if len(h2_tags) > 1 else ""
-            # The description is in a span with a class containing "line-clamp"
             description_tag = card.find("span", class_=lambda v: v and "line-clamp" in v)
             description = description_tag.get_text(strip=True) if description_tag else ""
             schemes.append({
@@ -320,8 +296,7 @@ def govt_schemes_endpoint():
                 "ministry": ministry,
                 "description": description
             })
-    
-    print("DEBUG: Extracted", len(schemes), "schemes.")
+    print(f"DEBUG: Page {page} - Extracted {len(schemes)} schemes.")
     return jsonify({"schemes": schemes})
 
 # ---------------------------------------------------------------------
