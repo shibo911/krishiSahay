@@ -11,7 +11,8 @@ import {
   ScrollView,
   ActivityIndicator,
   Modal,
-  Linking
+  Linking,
+  ImageBackground,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { Audio } from "expo-av";
@@ -21,9 +22,10 @@ import MapView, { Marker, Callout } from "react-native-maps";
 import { NavigationContainer, useNavigation } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createStackNavigator } from "@react-navigation/stack";
+import { Ionicons } from "@expo/vector-icons";
 
 // Replace with your backend URL
-const BACKEND_URL = "http://172.70.110.142:5000";
+const BACKEND_URL = "http://192.168.234.172:5000";
 
 /* =======================================================
    DiseasePredictionScreen
@@ -37,7 +39,8 @@ function DiseasePredictionScreen() {
   const navigation = useNavigation();
 
   const pickImage = async () => {
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const permissionResult =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permissionResult.granted) {
       alert("Permission to access camera roll is required!");
       return;
@@ -358,7 +361,7 @@ function GovernmentSchemesScreen() {
       if (data.schemes.length === 0) {
         setAllLoaded(true);
       } else {
-        setSchemes(prev => [...prev, ...data.schemes]);
+        setSchemes((prev) => [...prev, ...data.schemes]);
       }
     } catch (error) {
       console.error("Error fetching schemes", error);
@@ -471,7 +474,9 @@ function StoreFinderScreen({ route }) {
 
   const fetchStoreDetails = async (place_id) => {
     try {
-      const url = `${BACKEND_URL}/place_details?place_id=${encodeURIComponent(place_id)}`;
+      const url = `${BACKEND_URL}/place_details?place_id=${encodeURIComponent(
+        place_id
+      )}`;
       const response = await fetch(url);
       const data = await response.json();
       if (data.error) {
@@ -547,14 +552,20 @@ function StoreFinderScreen({ route }) {
               <View style={{ width: 200 }}>
                 <Text style={{ fontWeight: "bold" }}>{store.name}</Text>
                 <Text>{store.address}</Text>
-                <Text style={{ color: "blue", marginTop: 5 }}>View Details</Text>
+                <Text style={{ color: "blue", marginTop: 5 }}>
+                  View Details
+                </Text>
               </View>
             </Callout>
           </Marker>
         ))}
       </MapView>
       {loading && (
-        <ActivityIndicator style={styles.mapLoading} size="large" color="#2196F3" />
+        <ActivityIndicator
+          style={styles.mapLoading}
+          size="large"
+          color="#2196F3"
+        />
       )}
       <Modal
         visible={modalVisible}
@@ -570,7 +581,9 @@ function StoreFinderScreen({ route }) {
             {storeDetails ? (
               <>
                 <Text style={styles.modalTitle}>{storeDetails.name}</Text>
-                <Text style={styles.modalText}>{storeDetails.formatted_address}</Text>
+                <Text style={styles.modalText}>
+                  {storeDetails.formatted_address}
+                </Text>
                 {storeDetails.formatted_phone_number && (
                   <Text style={styles.modalText}>
                     Phone: {storeDetails.formatted_phone_number}
@@ -587,11 +600,13 @@ function StoreFinderScreen({ route }) {
                       <Text style={[styles.modalText, { marginTop: 10 }]}>
                         Opening Hours:
                       </Text>
-                      {storeDetails.opening_hours.weekday_text.map((line, index) => (
-                        <Text key={index} style={styles.modalText}>
-                          {line}
-                        </Text>
-                      ))}
+                      {storeDetails.opening_hours.weekday_text.map(
+                        (line, index) => (
+                          <Text key={index} style={styles.modalText}>
+                            {line}
+                          </Text>
+                        )
+                      )}
                     </>
                   )}
                 <Button
@@ -636,7 +651,9 @@ function WeatherScreen() {
 
   const fetchWeather = async (lat, lon) => {
     try {
-      const response = await fetch(`${BACKEND_URL}/weather?lat=${lat}&lon=${lon}`);
+      const response = await fetch(
+        `${BACKEND_URL}/weather?lat=${lat}&lon=${lon}`
+      );
       const data = await response.json();
       if (data.error) {
         alert(data.error);
@@ -644,11 +661,12 @@ function WeatherScreen() {
       } else {
         // Group the 3-hour forecasts by day
         const grouped = groupForecastByDay(data.list);
-        // For each day, pick the forecast for 12:00 if available (else the first forecast)
         let dailyForecasts = [];
         for (let date in grouped) {
           const forecasts = grouped[date];
-          let middayForecast = forecasts.find((item) => item.dt_txt.includes("12:00:00"));
+          let middayForecast = forecasts.find((item) =>
+            item.dt_txt.includes("12:00:00")
+          );
           if (!middayForecast) {
             middayForecast = forecasts[0];
           }
@@ -708,15 +726,38 @@ function WeatherScreen() {
 }
 
 /* =======================================================
-   Navigation Setup
+   Navigation Setup with Bottom Tabs and Icons
 ======================================================= */
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
 function MainTabs() {
   return (
-    <Tab.Navigator>
-      <Tab.Screen name="Disease Prediction" component={DiseasePredictionScreen} />
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName;
+          if (route.name === "Disease Prediction") {
+            iconName = focused ? "leaf" : "leaf-outline";
+          } else if (route.name === "Chat") {
+            iconName = focused ? "chatbubble" : "chatbubble-outline";
+          } else if (route.name === "Schemes") {
+            iconName = focused ? "document-text" : "document-text-outline";
+          } else if (route.name === "Weather") {
+            iconName = focused ? "cloud" : "cloud-outline";
+          }
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+        tabBarActiveTintColor: "green",
+        tabBarInactiveTintColor: "gray",
+        tabBarLabelStyle: { fontSize: 12 },
+        headerShown: false,
+      })}
+    >
+      <Tab.Screen
+        name="Disease Prediction"
+        component={DiseasePredictionScreen}
+      />
       <Tab.Screen name="Chat" component={ChatScreen} />
       <Tab.Screen name="Schemes" component={GovernmentSchemesScreen} />
       <Tab.Screen name="Weather" component={WeatherScreen} />
@@ -726,12 +767,24 @@ function MainTabs() {
 
 export default function App() {
   return (
-    <NavigationContainer>
-      <Stack.Navigator>
-        <Stack.Screen name="Home" component={MainTabs} options={{ headerShown: false }} />
-        <Stack.Screen name="Store Finder" component={StoreFinderScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <ImageBackground
+      source={require("./assets/background.jpg")} // Make sure the file exists here
+      style={styles.background}
+      blurRadius={2}
+      imageStyle={styles.backgroundImage}
+      resizeMode="cover"
+    >
+      <NavigationContainer>
+        <Stack.Navigator>
+          <Stack.Screen
+            name="Home"
+            component={MainTabs}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen name="Store Finder" component={StoreFinderScreen} />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </ImageBackground>
   );
 }
 
@@ -739,15 +792,21 @@ export default function App() {
    Styles
 ======================================================= */
 const styles = StyleSheet.create({
+  background: {
+    flex: 1,
+  },
+  backgroundImage: {
+    opacity: 0.8,
+  },
   container: {
     flexGrow: 1,
     alignItems: "center",
     padding: 20,
-    backgroundColor: "#F0FFF0",
+    backgroundColor: "transparent",
   },
   chatContainer: {
     flex: 1,
-    backgroundColor: "#F0FFF0",
+    backgroundColor: "transparent",
   },
   mapContainer: {
     flex: 1,
@@ -877,7 +936,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 5,
   },
-  // Styles for Government Schemes Screen
   card: {
     backgroundColor: "#fff",
     padding: 15,
