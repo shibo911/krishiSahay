@@ -1,10 +1,28 @@
-// frontend/screens/DiseasePredictionScreen.js
+//frontend/screens/DiseasePredictionScreen.js
 import React, { useState } from "react";
-import { Text, View, Button, Image, ScrollView, ActivityIndicator } from "react-native";
+import { 
+  Text, 
+  View, 
+  Image, 
+  ScrollView, 
+  ActivityIndicator, 
+  TouchableOpacity 
+} from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { useNavigation } from "@react-navigation/native";
 import { BACKEND_URL } from "../config";
 import styles from "../styles/styles";
+/**
+ * Helper function to remove markdown formatting.
+ * It removes any asterisks (both ** and *) and leading numbering (e.g., "1. ") from the text.
+ */
+function stripMarkdown(text) {
+  if (!text) return "";
+  return text
+    .replace(/\*\*/g, "")     // Remove all instances of **
+    .replace(/\*/g, "")        // Remove all instances of *
+    .replace(/^\d+\.\s+/gm, ""); // Remove numbering at the beginning of each line
+}
 
 const DiseasePredictionScreen = () => {
   const [image, setImage] = useState(null);
@@ -96,45 +114,61 @@ const DiseasePredictionScreen = () => {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: "#E8F5E9" }]}>
       <Text style={styles.title}>KrishiSahay: Crop Disease Prediction</Text>
-      <Button title="Pick an Image" onPress={pickImage} />
+      
+      {/* Custom Button for Picking an Image */}
+      <TouchableOpacity style={styles.button} onPress={pickImage}>
+        <Text style={styles.buttonText}>Pick an Image</Text>
+      </TouchableOpacity>
+      
       <View style={{ marginVertical: 10 }} />
-      <Button title="Capture an Image" onPress={captureImage} />
+      
+      {/* Custom Button for Capturing an Image */}
+      <TouchableOpacity style={styles.button} onPress={captureImage}>
+        <Text style={styles.buttonText}>Capture an Image</Text>
+      </TouchableOpacity>
+      
       {image && (
         <Image
           source={{ uri: image }}
-          style={{ width: 300, height: 300, marginVertical: 20 }}
+          style={{ width: 300, height: 300, marginVertical: 20, borderRadius: 10 }}
         />
       )}
+      
       {image && (
-        <Button title="Upload and Predict" onPress={uploadImage} disabled={loading} />
+        // Custom Button for Uploading and Predicting
+        <TouchableOpacity style={styles.uploadButton} onPress={uploadImage} disabled={loading}>
+          <Text style={styles.uploadButtonText}>Upload and Predict</Text>
+        </TouchableOpacity>
       )}
+      
       {loading && <ActivityIndicator size="large" color="#2196F3" />}
+      
       {prediction && (
-        <View style={{ marginTop: 20 }}>
-          <Text style={styles.predictionText}>Prediction: {prediction}</Text>
+        <View style={{ marginTop: 20, backgroundColor: "lightgreen", padding: 10, borderRadius: 8 }}>
+          <Text style={styles.predictionText}>Prediction: {stripMarkdown(prediction)}</Text>
         </View>
       )}
+      
       {additionalInfo && (
-        <View style={{ marginTop: 20 }}>
-          <Text style={styles.additionalInfoText}>{additionalInfo}</Text>
+        <View style={{ marginTop: 20, backgroundColor: "lightgreen", padding: 10, borderRadius: 8 }}>
+          <Text style={styles.additionalInfoText}>{stripMarkdown(additionalInfo)}</Text>
         </View>
       )}
+      
       {recommendedStoreType && (
-        <View style={{ marginTop: 20 }}>
-          <Button
-            title="Find Local Stores"
-            onPress={() =>
-              navigation.navigate("Store Finder", {
-                storeType: recommendedStoreType,
-              })
-            }
-          />
-        </View>
+        // Custom Button for Finding Local Stores
+        <TouchableOpacity
+          style={styles.findStoreButton}
+          onPress={() =>
+            navigation.navigate("Store Finder", { storeType: recommendedStoreType })
+          }
+        >
+          <Text style={styles.findStoreButtonText}>Find Local Stores</Text>
+        </TouchableOpacity>
       )}
     </ScrollView>
   );
 };
-
 export default DiseasePredictionScreen;

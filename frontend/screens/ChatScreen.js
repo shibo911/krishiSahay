@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { Audio } from "expo-av";
 import * as Speech from "expo-speech";
+import { Ionicons } from "@expo/vector-icons"; // Import Ionicons for icons
 import { BACKEND_URL } from "../config";
 import styles from "../styles/styles";
 
@@ -151,7 +152,8 @@ const ChatScreen = () => {
           }
           style={styles.speakerButton}
         >
-          <Text style={styles.speakerButtonText}>🔊</Text>
+          {/* Replace speaker text with Ionicons icon */}
+          <Ionicons name="volume-high" size={24} color="#fff" />
         </TouchableOpacity>
       )}
     </View>
@@ -165,7 +167,7 @@ const ChatScreen = () => {
     >
       <View style={styles.chatContainer}>
         {/* Heading with white color and extra spacing */}
-        <Text style={[styles.title, { color: "#fff", marginTop: 30 }]}>
+        <Text style={[styles.title, { color: "#fff", marginTop: 40 }]}>
           Chat with KrishiSahay
         </Text>
         <FlatList
@@ -189,9 +191,12 @@ const ChatScreen = () => {
             onPress={isRecording ? stopRecording : startRecording}
             style={styles.micButton}
           >
-            <Text style={styles.micButtonText}>
-              {isRecording ? "Stop" : "🎤"}
-            </Text>
+            {/* Replace mic text with Ionicons icon */}
+            <Ionicons
+              name={isRecording ? "mic-off" : "mic"}
+              size={24}
+              color="#fff"
+            />
           </TouchableOpacity>
         </View>
         {loading && <ActivityIndicator size="large" color="#2196F3" />}

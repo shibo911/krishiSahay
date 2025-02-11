@@ -5,7 +5,6 @@ const styles = StyleSheet.create({
   background: {
     flex: 1,
   },
-
   container: {
     flexGrow: 1,
     alignItems: "center",
@@ -173,6 +172,62 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
   },
+
+  /* =========================
+     Improved Button Styles
+  ========================== */
+  button: {
+    backgroundColor: "#4CAF50", // A pleasant green tone
+    paddingVertical: 12,
+    paddingHorizontal: 25,
+    borderRadius: 25,
+    marginVertical: 8,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  buttonText: {
+    color: "#fff",
+    fontSize: 16,
+    textAlign: "center",
+  },
+  uploadButton: {
+    backgroundColor: "#2196F3", // A vibrant blue for action
+    paddingVertical: 12,
+    paddingHorizontal: 25,
+    borderRadius: 25,
+    marginVertical: 8,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  uploadButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    textAlign: "center",
+  },
+  findStoreButton: {
+    backgroundColor: "#FF5722", // A bold orange for emphasis
+    paddingVertical: 12,
+    paddingHorizontal: 25,
+    borderRadius: 25,
+    marginVertical: 8,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  findStoreButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    textAlign: "center",
+  },
 });
 
 export default styles;
+
