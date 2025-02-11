@@ -1,9 +1,8 @@
 // frontend/screens/WeatherScreen.js
 import React, { useState, useEffect } from "react";
-import { ScrollView, View, Text, ActivityIndicator } from "react-native";
+import { ScrollView, View, Text, ActivityIndicator, StyleSheet, Image } from "react-native";
 import * as Location from "expo-location";
 import { BACKEND_URL } from "../config";
-import styles from "../styles/styles";
 
 const WeatherScreen = () => {
   const [location, setLocation] = useState(null);
@@ -67,6 +66,48 @@ const WeatherScreen = () => {
     return grouped;
   };
 
+  // Format the date label as "Today", "Tomorrow", or the actual date.
+  const formatDateLabel = (dateStr) => {
+    const today = new Date();
+    const todayStr = today.toISOString().split("T")[0];
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split("T")[0];
+    
+    if (dateStr === todayStr) return "Today";
+    else if (dateStr === tomorrowStr) return "Tomorrow";
+    else return dateStr;
+  };
+
+  const getWeatherEmoji = (weatherMain) => {
+    switch (weatherMain.toLowerCase()) {
+      case "clear":
+        return "☀️";
+      case "clouds":
+        return "☁️";
+      case "rain":
+        return "🌧️";
+      case "drizzle":
+        return "🌦️";
+      case "thunderstorm":
+        return "⛈️";
+      case "snow":
+        return "❄️";
+      case "mist":
+      case "smoke":
+      case "haze":
+      case "dust":
+      case "fog":
+      case "sand":
+      case "ash":
+      case "squall":
+      case "tornado":
+        return "🌫️";
+      default:
+        return "";
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -82,20 +123,97 @@ const WeatherScreen = () => {
       {forecast &&
         forecast.map((item, index) => {
           const { date, forecast: fc } = item;
+          const formattedDate = formatDateLabel(date);
+          const iconUrl = `https://openweathermap.org/img/wn/${fc.weather[0].icon}@2x.png`;
+          const weatherEmoji = getWeatherEmoji(fc.weather[0].main);
           return (
             <View key={index} style={styles.card}>
-              <Text style={styles.schemeTitle}>{date}</Text>
-              <Text style={styles.schemeDescription}>
-                {fc.weather[0].main} - {fc.weather[0].description}
-              </Text>
-              <Text style={styles.schemeDescription}>
-                Temp: {fc.main.temp}°C, Humidity: {fc.main.humidity}%
-              </Text>
+              <Text style={styles.schemeTitle}>{formattedDate}</Text>
+              <View style={styles.weatherRow}>
+                <Image source={{ uri: iconUrl }} style={styles.weatherIcon} />
+                <View style={styles.weatherDetails}>
+                  <Text style={styles.schemeDescription}>
+                    {weatherEmoji} {fc.weather[0].main} - {fc.weather[0].description}
+                  </Text>
+                  <Text style={styles.schemeDescription}>
+                    Temp: {fc.main.temp}°C
+                  </Text>
+                  <Text style={styles.schemeDescription}>
+                    Humidity: {fc.main.humidity}%
+                  </Text>
+                  <Text style={styles.schemeDescription}>
+                    Wind: {fc.wind.speed} m/s
+                  </Text>
+                  <Text style={styles.schemeDescription}>
+                    Pressure: {fc.main.pressure} hPa
+                  </Text>
+                </View>
+              </View>
             </View>
           );
         })}
     </ScrollView>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flexGrow: 1,
+    padding: 20,
+    backgroundColor: "#f3f9f3", // light, refreshing background
+    alignItems: "center",
+  },
+  title: {
+    fontSize: 26,
+    fontWeight: "bold",
+    marginVertical: 20,
+    color: "#2E8B57", // deep green for a natural touch
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#f0fff0",
+  },
+  card: {
+    backgroundColor: "#e8f5e9", // refreshing light green for weather cards
+    padding: 20,
+    marginVertical: 12,
+    borderRadius: 20,
+    width: "90%",
+    alignSelf: "center",
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: "#c8e6c9", // subtle light green border for a refined look
+  },
+  schemeTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#00796B", // darker teal for the date/title
+    marginBottom: 8,
+  },
+  schemeDescription: {
+    fontSize: 16,
+    color: "#424242",
+    marginVertical: 4,
+  },
+  weatherRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 10,
+  },
+  weatherIcon: {
+    width: 80,
+    height: 80,
+    marginRight: 15,
+  },
+  weatherDetails: {
+    flex: 1,
+  },
+});
 
 export default WeatherScreen;

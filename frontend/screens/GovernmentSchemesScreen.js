@@ -1,6 +1,6 @@
 // frontend/screens/GovernmentSchemesScreen.js
 import React, { useState, useEffect } from "react";
-import { View, Text, FlatList, Button, TouchableOpacity, ActivityIndicator, Linking } from "react-native";
+import { View, Text, FlatList, Button, TouchableOpacity, ActivityIndicator, Linking, TextInput } from "react-native";
 import { BACKEND_URL } from "../config";
 import styles from "../styles/styles";
 
@@ -10,16 +10,27 @@ const GovernmentSchemesScreen = () => {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [allLoaded, setAllLoaded] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const fetchSchemes = async (page) => {
+  const fetchSchemes = async (page, query = "") => {
     try {
-      const response = await fetch(`${BACKEND_URL}/govt_schemes?page=${page}`);
+      // Build URL with optional search query
+      let url = `${BACKEND_URL}/govt_schemes?page=${page}`;
+      if (query && query.trim() !== "") {
+        url += `&search=${encodeURIComponent(query.trim())}`;
+      }
+      const response = await fetch(url);
       const data = await response.json();
       console.log(`Schemes received for page ${page}:`, data.schemes);
+      
       if (data.schemes.length === 0) {
         setAllLoaded(true);
       } else {
-        setSchemes((prev) => [...prev, ...data.schemes]);
+        if (page === 1) {
+          setSchemes(data.schemes);
+        } else {
+          setSchemes((prev) => [...prev, ...data.schemes]);
+        }
       }
     } catch (error) {
       console.error("Error fetching schemes", error);
@@ -30,16 +41,20 @@ const GovernmentSchemesScreen = () => {
     }
   };
 
+  // Fetch schemes on mount and when searchQuery changes
   useEffect(() => {
-    fetchSchemes(1);
-  }, []);
+    setLoading(true);
+    setAllLoaded(false);
+    setCurrentPage(1);
+    fetchSchemes(1, searchQuery);
+  }, [searchQuery]);
 
   const loadMore = () => {
     if (!allLoaded && !loadingMore) {
       setLoadingMore(true);
       const nextPage = currentPage + 1;
       setCurrentPage(nextPage);
-      fetchSchemes(nextPage);
+      fetchSchemes(nextPage, searchQuery);
     }
   };
 
@@ -58,6 +73,21 @@ const GovernmentSchemesScreen = () => {
 
   return (
     <View style={{ flex: 1 }}>
+      {/* Search Input */}
+      <TextInput
+        style={styles.searchInput}
+        placeholder="Search Government Schemes"
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+        returnKeyType="search"
+        onSubmitEditing={() => {
+          setLoading(true);
+          setAllLoaded(false);
+          setCurrentPage(1);
+          fetchSchemes(1, searchQuery);
+        }}
+      />
+      
       <FlatList
         data={schemes}
         keyExtractor={(item, index) => index.toString()}
@@ -98,3 +128,7 @@ const GovernmentSchemesScreen = () => {
 };
 
 export default GovernmentSchemesScreen;
+
+
+
+
