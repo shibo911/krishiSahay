@@ -5,9 +5,7 @@ const styles = StyleSheet.create({
   background: {
     flex: 1,
   },
-  backgroundImage: {
-    opacity: 0.8,
-  },
+
   container: {
     flexGrow: 1,
     alignItems: "center",

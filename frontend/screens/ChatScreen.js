@@ -1,6 +1,14 @@
 // frontend/screens/ChatScreen.js
 import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, TouchableOpacity, FlatList, ActivityIndicator } from "react-native";
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  FlatList, 
+  ActivityIndicator, 
+  ImageBackground 
+} from "react-native";
 import { Audio } from "expo-av";
 import * as Speech from "expo-speech";
 import { BACKEND_URL } from "../config";
@@ -127,7 +135,13 @@ const ChatScreen = () => {
         item.role === "user" ? styles.userMessage : styles.botMessage,
       ]}
     >
-      <Text style={styles.messageText}>
+      <Text
+        style={
+          item.role === "user"
+            ? [styles.messageText, { color: "#000" }] // Display user messages in black
+            : styles.messageText // AI responses use the default style
+        }
+      >
         {item.role === "user" ? "You" : "KrishiSahay"}: {item.content}
       </Text>
       {item.role === "assistant" && (
@@ -144,35 +158,45 @@ const ChatScreen = () => {
   );
 
   return (
-    <View style={styles.chatContainer}>
-      <Text style={styles.title}>Chat with KrishiSahay</Text>
-      <FlatList
-        data={messages}
-        renderItem={renderMessage}
-        keyExtractor={(_, index) => index.toString()}
-        style={styles.chatList}
-      />
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder="Ask a question about crops..."
-          value={userInput}
-          onChangeText={setUserInput}
+    <ImageBackground
+      source={require("../assets/background.jpg")}
+      style={{ flex: 1, width: "100%", height: "100%" }}
+      resizeMode="cover"
+    >
+      <View style={styles.chatContainer}>
+        {/* Heading with white color and extra spacing */}
+        <Text style={[styles.title, { color: "#fff", marginTop: 30 }]}>
+          Chat with KrishiSahay
+        </Text>
+        <FlatList
+          data={messages}
+          renderItem={renderMessage}
+          keyExtractor={(_, index) => index.toString()}
+          style={styles.chatList}
         />
-        <TouchableOpacity onPress={sendMessage} style={styles.sendButton}>
-          <Text style={styles.sendButtonText}>Send</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={isRecording ? stopRecording : startRecording}
-          style={styles.micButton}
-        >
-          <Text style={styles.micButtonText}>
-            {isRecording ? "Stop" : "🎤"}
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={[styles.input, { color: "#fff" }]} // Typing text appears white
+            placeholder="Ask a question about crops..."
+            placeholderTextColor="#ccc"
+            value={userInput}
+            onChangeText={setUserInput}
+          />
+          <TouchableOpacity onPress={sendMessage} style={styles.sendButton}>
+            <Text style={styles.sendButtonText}>Send</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={isRecording ? stopRecording : startRecording}
+            style={styles.micButton}
+          >
+            <Text style={styles.micButtonText}>
+              {isRecording ? "Stop" : "🎤"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+        {loading && <ActivityIndicator size="large" color="#2196F3" />}
       </View>
-      {loading && <ActivityIndicator size="large" color="#2196F3" />}
-    </View>
+    </ImageBackground>
   );
 };
 
