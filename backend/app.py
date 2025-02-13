@@ -55,22 +55,46 @@ try:
 except Exception as e:
     print(f"Error loading model: {e}")
 
+# Updated human-friendly class names
 classes = [
-    'Apple___Apple_scab', 'Apple___Black_rot', 'Apple___Cedar_apple_rust',
-    'Apple___healthy', 'Blueberry___healthy', 'Cherry_(including_sour)___Powdery_mildew',
-    'Cherry_(including_sour)___healthy', 'Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot',
-    'Corn_(maize)___Common_rust_', 'Corn_(maize)___Northern_Leaf_Blight',
-    'Corn_(maize)___healthy', 'Grape___Black_rot', 'Grape___Esca_(Black_Measles)',
-    'Grape___Leaf_blight_(Isariopsis_Leaf_Spot)', 'Grape___healthy',
-    'Orange___Haunglongbing_(Citrus_greening)', 'Peach___Bacterial_spot',
-    'Peach___healthy', 'Pepper,_bell___Bacterial_spot', 'Pepper,_bell___healthy',
-    'Potato___Early_blight', 'Potato___Late_blight', 'Potato___healthy',
-    'Raspberry___healthy', 'Soybean___healthy', 'Squash___Powdery_mildew',
-    'Strawberry___Leaf_scorch', 'Strawberry___healthy', 'Tomato___Bacterial_spot',
-    'Tomato___Early_blight', 'Tomato___Late_blight', 'Tomato___Leaf_Mold',
-    'Tomato___Septoria_leaf_spot', 'Tomato___Spider_mites Two-spotted_spider_mite',
-    'Tomato___Target_Spot', 'Tomato___Tomato_Yellow_Leaf_Curl_Virus',
-    'Tomato___Tomato_mosaic_virus', 'Tomato___healthy'
+    "Apple - Apple Scab",
+    "Apple - Black Rot",
+    "Apple - Cedar Apple Rust",
+    "Apple - Healthy",
+    "Blueberry - Healthy",
+    "Cherry (including sour) - Powdery Mildew",
+    "Cherry (including sour) - Healthy",
+    "Corn (maize) - Cercospora Leaf Spot, Gray Leaf Spot",
+    "Corn (maize) - Common Rust",
+    "Corn (maize) - Northern Leaf Blight",
+    "Corn (maize) - Healthy",
+    "Grape - Black Rot",
+    "Grape - Esca (Black Measles)",
+    "Grape - Leaf Blight (Isariopsis Leaf Spot)",
+    "Grape - Healthy",
+    "Orange - Haunglongbing (Citrus Greening)",
+    "Peach - Bacterial Spot",
+    "Peach - Healthy",
+    "Bell Pepper - Bacterial Spot",
+    "Bell Pepper - Healthy",
+    "Potato - Early Blight",
+    "Potato - Late Blight",
+    "Potato - Healthy",
+    "Raspberry - Healthy",
+    "Soybean - Healthy",
+    "Squash - Powdery Mildew",
+    "Strawberry - Leaf Scorch",
+    "Strawberry - Healthy",
+    "Tomato - Bacterial Spot",
+    "Tomato - Early Blight",
+    "Tomato - Late Blight",
+    "Tomato - Leaf Mold",
+    "Tomato - Septoria Leaf Spot",
+    "Tomato - Spider Mites (Two-spotted Spider Mite)",
+    "Tomato - Target Spot",
+    "Tomato - Tomato Yellow Leaf Curl Virus",
+    "Tomato - Tomato Mosaic Virus",
+    "Tomato - Healthy"
 ]
 
 # -----------------------------
@@ -92,14 +116,25 @@ def predict_disease(img_path):
     return predicted_class_index, predicted_disease
 
 def get_disease_info(disease_name):
-    prompt = (f"Provide comprehensive details about {disease_name}. "
-              "Include introduction, causes, prevention methods, danger level, "
-              "and recommended pesticides, fertilizers, or herbicides if available.")
+    # New prompt instructs the AI to write in simple, plain language that is short and easy to understand.
+    prompt = (
+        f"Explain the crop disease '{disease_name}' in simple, short, and clear language that a farmer can easily understand. "
+        "The answer must include exactly five sections with the following headings in the exact format provided:\n\n"
+        "1. **Introduction**: A brief overview of the disease.\n"
+        "2. **Causes**: What factors lead to this disease.\n"
+        "3. **Prevention Methods**: How to prevent or reduce the risk of the disease.\n"
+        "4. **Danger Level**: How severe or harmful the disease is.\n"
+        "5. **Recommended Remedies**: Short suggestions for treatments such as pesticides or fertilizers.\n\n"
+        "Ensure your answer starts with '1. **Introduction**:' and that no section is omitted. Keep your sentences short and avoid technical jargon."
+    )
     response = gemini_model.generate_content(prompt)
     return response.text
 
 def get_healthy_advice():
-    prompt = "My crop is healthy. How can I ensure it remains healthy and prevent diseases?"
+    # Similarly, produce a simple and concise answer.
+    prompt = (
+        "My crop is healthy. In simple and short language that a farmer can easily understand, give me a few easy tips to keep it healthy and prevent diseases."
+    )
     response = gemini_model.generate_content(prompt)
     return response.text
 
@@ -163,9 +198,7 @@ def recommended_store_type_endpoint():
     disease_name = request.args.get("disease_name")
     if not disease_name:
         return jsonify({"error": "No disease name provided."}), 400
-    prompt = (f"For the crop disease '{disease_name}', what is the best type of store a farmer "
-              f"should visit to purchase remedy products (such as pesticides, fertilizers, or herbicides)? "
-              f"Provide only a short answer (for example, 'fertilizer store').")
+    prompt = (f"For the crop disease '{disease_name}', what is the best type of store a farmer should visit to buy treatments like pesticides or fertilizers? Provide only a short answer (for example, 'fertilizer store').")
     try:
         response = gemini_model.generate_content(prompt)
         store_type = response.text.strip()
@@ -206,8 +239,7 @@ def chat_endpoint():
         read_aloud = data.get("read_aloud", False)
 
     system_message = (
-        "You are KrishiSahay, an AI assistant specialized in crop management, "
-        "crop diseases, healthy plant practices, and crop-related advice. "
+        "You are KrishiSahay, an AI assistant specialized in crop management, crop diseases, healthy plant practices, and crop-related advice. "
         "You will only answer questions related to crops and agriculture."
     )
     prompt_with_context = f"{system_message}\nUser: {prompt}"
@@ -357,7 +389,7 @@ def store_finder_endpoint():
 def place_details_endpoint():
     place_id = request.args.get("place_id")
     if not place_id:
-        return jsonify({"error": "No place_id provided"}), 400
+        return jsonify({"error": "No place_id provided."}), 400
     url = f"https://maps.gomaps.pro/maps/api/place/details/json?place_id={urllib.parse.quote(place_id)}&key={GOMAPS_API_KEY}"
     try:
         r = requests.get(url)
