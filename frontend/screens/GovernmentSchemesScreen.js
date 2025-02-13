@@ -128,7 +128,3 @@ const GovernmentSchemesScreen = () => {
 };
 
 export default GovernmentSchemesScreen;
-
-
-
-

@@ -427,17 +427,66 @@ def weather_forecast_endpoint():
         "lat": lat,
         "lon": lon,
         "appid": OPENWEATHER_API_KEY,
-        "units": "metric"  # For Celsius; use "imperial" for Fahrenheit.
+        "units": "metric"
     }
 
     try:
         r = requests.get(weather_url, params=params)
-        r.raise_for_status()  # Raises an error for non-200 responses
+        r.raise_for_status()
         forecast_data = r.json()
+        
+        # Initialize crisis mode flags and list
+        crisis_mode = False
+        crisis_events = []
+        
+        # Iterate over forecast items (usually every 3 hours)
+        for item in forecast_data.get("list", []):
+            weather_info = item.get("weather", [{}])[0]
+            weather_main = weather_info.get("main", "").lower()
+            forecast_time = item.get("dt_txt", "Unknown time")
+            temp = item.get("main", {}).get("temp", None)
+            wind_speed = item.get("wind", {}).get("speed", 0)
+            rain = item.get("rain", {}).get("3h", 0)
+            
+            # Condition: Thunderstorm or Tornado
+            if weather_main in ["thunderstorm", "tornado"]:
+                crisis_mode = True
+                crisis_events.append({"time": forecast_time, "condition": weather_main.title()})
+            
+            # Condition: Heavy Rain (more than 20 mm in 3 hours)
+            if rain and rain > 20:
+                crisis_mode = True
+                crisis_events.append({"time": forecast_time, "condition": "Heavy Rain"})
+            
+            # Condition: Extreme Heat (temperature > 40°C)
+            if temp is not None and temp > 40:
+                crisis_mode = True
+                crisis_events.append({"time": forecast_time, "condition": "Extreme Heat"})
+            
+            # Condition: Severe Cold (temperature < 5°C)
+            if temp is not None and temp < 5:
+                crisis_mode = True
+                crisis_events.append({"time": forecast_time, "condition": "Severe Cold"})
+            
+            # Condition: High Winds (wind speed > 20 m/s)
+            if wind_speed and wind_speed > 20:
+                crisis_mode = True
+                crisis_events.append({"time": forecast_time, "condition": "High Winds"})
+            
+            # Condition: Dust Storm (weather condition is Dust, Sand, or Ash with high wind)
+            if weather_main in ["dust", "sand", "ash"] and wind_speed > 10:
+                crisis_mode = True
+                crisis_events.append({"time": forecast_time, "condition": "Dust/Sand Storm"})
+        
+        # Append crisis mode info to the forecast data
+        forecast_data["crisis_mode"] = crisis_mode
+        forecast_data["crisis_events"] = crisis_events
+        
         return jsonify(forecast_data)
     except Exception as e:
         print("Error in /weather endpoint:", e)
         return jsonify({"error": str(e)}), 500
+
 
 @app.route('/')
 def home():
