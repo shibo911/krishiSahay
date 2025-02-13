@@ -12,9 +12,11 @@ import * as ImagePicker from "expo-image-picker";
 import { useNavigation } from "@react-navigation/native";
 import { BACKEND_URL } from "../config";
 import styles from "../styles/styles";
+
 /**
  * Helper function to remove markdown formatting.
  * It removes any asterisks (both ** and *) and leading numbering (e.g., "1. ") from the text.
+ * (This is still used for the prediction text.)
  */
 function stripMarkdown(text) {
   if (!text) return "";
@@ -23,6 +25,50 @@ function stripMarkdown(text) {
     .replace(/\*/g, "")        // Remove all instances of *
     .replace(/^\d+\.\s+/gm, ""); // Remove numbering at the beginning of each line
 }
+
+/**
+ * Helper function to render text with bold formatting where text is wrapped in ** **.
+ */
+function renderFormattedText(text) {
+  if (!text) return null;
+  // Split text by any occurrence of **...**
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+  return parts.map((part, index) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      // Remove the ** markers and render this part in bold.
+      return (
+        <Text key={index} style={{ fontWeight: "bold" }}>
+          {part.slice(2, -2)}
+        </Text>
+      );
+    }
+    return <Text key={index}>{part}</Text>;
+  });
+}
+
+/**
+ * Parse the additional info string into an array of sections.
+ * Expected format:
+ * 1. **Introduction**: ...
+ * 2. **Causes**: ...
+ * 3. **Prevention Methods**: ...
+ * 4. **Danger Level**: ...
+ * 5. **Recommended Remedies**: ...
+ */
+const parseDiseaseInfo = (info) => {
+  // This regex captures the section headers in the expected format.
+  const regex = /(\d+\.\s\*\*[A-Za-z ]+\*\*:)/g;
+  // Split the info string by the headers.
+  const parts = info.split(regex).filter((part) => part.trim() !== "");
+  const sections = [];
+  for (let i = 0; i < parts.length; i += 2) {
+    // Keep the title as-is (with ** markers) so it can be rendered with bold formatting.
+    const title = parts[i].trim();
+    const content = parts[i + 1] ? parts[i + 1].trim() : "";
+    sections.push({ title, content });
+  }
+  return sections;
+};
 
 const DiseasePredictionScreen = () => {
   const [image, setImage] = useState(null);
@@ -117,14 +163,14 @@ const DiseasePredictionScreen = () => {
     <ScrollView contentContainerStyle={[styles.container, { backgroundColor: "#E8F5E9" }]}>
       <Text style={styles.title}>KrishiSahay: Crop Disease Prediction</Text>
       
-      {/* Custom Button for Picking an Image */}
+      {/* Button to Pick an Image */}
       <TouchableOpacity style={styles.button} onPress={pickImage}>
         <Text style={styles.buttonText}>Pick an Image</Text>
       </TouchableOpacity>
       
       <View style={{ marginVertical: 10 }} />
       
-      {/* Custom Button for Capturing an Image */}
+      {/* Button to Capture an Image */}
       <TouchableOpacity style={styles.button} onPress={captureImage}>
         <Text style={styles.buttonText}>Capture an Image</Text>
       </TouchableOpacity>
@@ -137,7 +183,7 @@ const DiseasePredictionScreen = () => {
       )}
       
       {image && (
-        // Custom Button for Uploading and Predicting
+        // Button to Upload and Predict
         <TouchableOpacity style={styles.uploadButton} onPress={uploadImage} disabled={loading}>
           <Text style={styles.uploadButtonText}>Upload and Predict</Text>
         </TouchableOpacity>
@@ -147,18 +193,29 @@ const DiseasePredictionScreen = () => {
       
       {prediction && (
         <View style={{ marginTop: 20, backgroundColor: "lightgreen", padding: 10, borderRadius: 8 }}>
-          <Text style={styles.predictionText}>Prediction: {stripMarkdown(prediction)}</Text>
+          <Text style={styles.predictionText}>
+            Prediction: {stripMarkdown(prediction)}
+          </Text>
         </View>
       )}
       
       {additionalInfo && (
-        <View style={{ marginTop: 20, backgroundColor: "lightgreen", padding: 10, borderRadius: 8 }}>
-          <Text style={styles.additionalInfoText}>{stripMarkdown(additionalInfo)}</Text>
+        <View style={{ marginTop: 20 }}>
+          {parseDiseaseInfo(additionalInfo).map((section, index) => (
+            <View key={index} style={styles.card}>
+              <Text style={styles.schemeTitle}>
+                {renderFormattedText(section.title)}
+              </Text>
+              <Text style={styles.schemeDescription}>
+                {renderFormattedText(section.content)}
+              </Text>
+            </View>
+          ))}
         </View>
       )}
       
       {recommendedStoreType && (
-        // Custom Button for Finding Local Stores
+        // Button to Find Local Stores
         <TouchableOpacity
           style={styles.findStoreButton}
           onPress={() =>
@@ -171,4 +228,5 @@ const DiseasePredictionScreen = () => {
     </ScrollView>
   );
 };
+
 export default DiseasePredictionScreen;
