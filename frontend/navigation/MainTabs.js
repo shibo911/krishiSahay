@@ -7,6 +7,7 @@ import DiseasePredictionScreen from "../screens/DiseasePredictionScreen";
 import ChatScreen from "../screens/ChatScreen";
 import GovernmentSchemesScreen from "../screens/GovernmentSchemesScreen";
 import WeatherScreen from "../screens/WeatherScreen";
+import RentalsScreen from "../screens/RentalsScreen";
 
 const Tab = createBottomTabNavigator();
 
@@ -24,6 +25,8 @@ const MainTabs = () => {
             iconName = focused ? "document-text" : "document-text-outline";
           } else if (route.name === "Weather") {
             iconName = focused ? "cloud" : "cloud-outline";
+          } else if (route.name === "Rentals") {
+            iconName = focused ? "home" : "home-outline";
           }
           return <Ionicons name={iconName} size={size} color={color} />;
         },
@@ -37,6 +40,7 @@ const MainTabs = () => {
       <Tab.Screen name="Chat" component={ChatScreen} />
       <Tab.Screen name="Schemes" component={GovernmentSchemesScreen} />
       <Tab.Screen name="Weather" component={WeatherScreen} />
+      <Tab.Screen name="Rentals" component={RentalsScreen} />
     </Tab.Navigator>
   );
 };

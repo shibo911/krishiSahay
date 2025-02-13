@@ -21,7 +21,7 @@ const GovernmentSchemesScreen = () => {
       }
       const response = await fetch(url);
       const data = await response.json();
-      console.log(`Schemes received for page ${page}:`, data.schemes);
+      //console.log(`Schemes received for page ${page}:`, data.schemes);
       
       if (data.schemes.length === 0) {
         setAllLoaded(true);

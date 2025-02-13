@@ -5,7 +5,7 @@ import requests
 import urllib.parse
 import time
 import base64
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, session
 import tensorflow as tf
 import numpy as np
 from PIL import Image
@@ -15,40 +15,45 @@ from pydub import AudioSegment
 from io import BytesIO
 from gtts import gTTS
 from bs4 import BeautifulSoup
-
-# Selenium imports for dynamic page rendering and interaction
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+
+# New imports for database and security
+from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # -----------------------------
 # Set ffmpeg path for pydub (if needed)
 # -----------------------------
 if os.name == 'nt':
-    # Replace with the actual path to your ffmpeg.exe if necessary
+    # Replace with the actual path if necessary
     AudioSegment.converter = r"C:\ffmpeg-2025-02-06-git-6da82b4485-essentials_build\ffmpeg.exe"
 
 # -----------------------------
-# Determine the Base Directory for Data Files
+# Determine the Base Directory
 # -----------------------------
 if getattr(sys, 'frozen', False):
     bundle_dir = sys._MEIPASS
 else:
     bundle_dir = os.path.dirname(os.path.abspath(__file__))
 
-# Absolute path to the plant disease prediction model
+# Path to the plant disease prediction model
 model_path = os.path.join(bundle_dir, 'plant_disease_prediction_model.h5')
 
 # -----------------------------
 # Configuration & Initialization
 # -----------------------------
+# Hardcoded API keys (not recommended for production)
 GEN_AI_API_KEY = "AIzaSyDlXMPgEKz9rySMSPtsgRlyeyoti35xFLU"
+GOMAPS_API_KEY = "AlzaSyH0NMUUZXYmHKHNNTNIt99pztmSxlG4NWQ"
+OPENWEATHER_API_KEY = "8f357a7db28608c3a382d54f22603874"
+
+# Configure the generative AI service
 genai.configure(api_key=GEN_AI_API_KEY)
-model_name = "gemini-2.0-flash-exp"  # Change if needed
+model_name = "gemini-2.0-flash-exp"
 gemini_model = genai.GenerativeModel(model_name)
 
-GOMAPS_API_KEY = "AlzaSyH0NMUUZXYmHKHNNTNIt99pztmSxlG4NWQ"
-
-# Load plant disease prediction model
+# Load the plant disease prediction model
 try:
     model_disease = tf.keras.models.load_model(model_path)
     print("Plant disease model loaded successfully.")
@@ -116,7 +121,6 @@ def predict_disease(img_path):
     return predicted_class_index, predicted_disease
 
 def get_disease_info(disease_name):
-    # New prompt instructs the AI to write in simple, plain language that is short and easy to understand.
     prompt = (
         f"Explain the crop disease '{disease_name}' in simple, short, and clear language that a farmer can easily understand. "
         "The answer must include exactly five sections with the following headings in the exact format provided:\n\n"
@@ -131,7 +135,6 @@ def get_disease_info(disease_name):
     return response.text
 
 def get_healthy_advice():
-    # Similarly, produce a simple and concise answer.
     prompt = (
         "My crop is healthy. In simple and short language that a farmer can easily understand, give me a few easy tips to keep it healthy and prevent diseases."
     )
@@ -151,10 +154,37 @@ def transcribe_audio(audio_path):
             raise RuntimeError(f"Speech Recognition service error: {e}")
 
 # -----------------------------
-# Flask App & Endpoints
+# Flask App & Database Setup
 # -----------------------------
 app = Flask(__name__)
+app.secret_key = 'replace_with_a_random_secret_key'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///krishisahay.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
 
+# -----------------------------
+# Database Models
+# -----------------------------
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password_hash = db.Column(db.String(128), nullable=False)
+
+class Rental(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    price = db.Column(db.Float, nullable=False)
+    contact = db.Column(db.String(100), nullable=False)  # required phone number
+    equipment_type = db.Column(db.String(100), nullable=False)
+    rental_duration = db.Column(db.String(100), nullable=False)
+    location = db.Column(db.String(255), nullable=False)
+    posted_by = db.Column(db.String(80), nullable=False)
+    photo = db.Column(db.String(255), nullable=True)  # optional photo field
+
+# -----------------------------
+# Endpoints for Crop-related Functionality
+# -----------------------------
 @app.route('/predict', methods=['POST'])
 def predict_endpoint():
     if "image" not in request.files:
@@ -260,15 +290,10 @@ def chat_endpoint():
             "response": text_response,
             "audio_response": audio_data_url
         }
-        if 'audio' in request.files:
-            result["user_transcription"] = prompt
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# ---------------------------------------------------------------------
-# Government Schemes Scraping Endpoint with Pagination
-# ---------------------------------------------------------------------
 @app.route('/govt_schemes', methods=['GET'])
 def govt_schemes_endpoint():
     page = request.args.get("page", default="1")
@@ -287,14 +312,14 @@ def govt_schemes_endpoint():
     
     driver = webdriver.Chrome(options=chrome_options)
     driver.get(target_url)
-    time.sleep(5)  # Wait for the initial load
+    time.sleep(5)
 
     if page > 1:
         try:
             page_xpath = f"//ul[contains(@class,'list-none') and contains(@class,'flex')]/li[normalize-space(text())='{page}']"
             page_button = driver.find_element("xpath", page_xpath)
             driver.execute_script("arguments[0].click();", page_button)
-            time.sleep(3)  # Wait for the new page content to load
+            time.sleep(3)
         except Exception as e:
             print(f"DEBUG: Could not navigate to page {page}: {e}")
             driver.quit()
@@ -302,11 +327,8 @@ def govt_schemes_endpoint():
 
     html = driver.page_source
     driver.quit()
-    print(f"DEBUG: Loaded page {page}, HTML length: {len(html)}")
-    
     soup = BeautifulSoup(html, "html.parser")
     candidate_cards = soup.find_all("div", class_="flex flex-col")
-    print(f"DEBUG: Page {page} - Found {len(candidate_cards)} candidate cards.")
     
     schemes = []
     base_url = "https://www.myscheme.gov.in"
@@ -326,12 +348,8 @@ def govt_schemes_endpoint():
                 "ministry": ministry,
                 "description": description
             })
-    print(f"DEBUG: Page {page} - Extracted {len(schemes)} schemes.")
     return jsonify({"schemes": schemes})
 
-# ---------------------------------------------------------------------
-# Store Finder Using GoMaps.pro Text Search API
-# ---------------------------------------------------------------------
 @app.route('/store_finder', methods=['GET'])
 def store_finder_endpoint():
     lat = request.args.get("lat")
@@ -382,9 +400,6 @@ def store_finder_endpoint():
     except Exception as e:
         return jsonify({"error": f"Error fetching store data: {e}"}), 500
 
-# ---------------------------------------------------------------------
-# Place Details Endpoint
-# ---------------------------------------------------------------------
 @app.route('/place_details', methods=['GET'])
 def place_details_endpoint():
     place_id = request.args.get("place_id")
@@ -403,12 +418,6 @@ def place_details_endpoint():
         return jsonify(data)
     except Exception as e:
         return jsonify({"error": f"Error fetching place details: {e}"}), 500
-
-# ---------------------------------------------------------------------
-# Weather Forecast Endpoint
-# ---------------------------------------------------------------------
-# Replace with your actual OpenWeatherMap API key
-OPENWEATHER_API_KEY = "8f357a7db28608c3a382d54f22603874"
 
 @app.route('/weather', methods=['GET'])
 def weather_forecast_endpoint():
@@ -435,11 +444,9 @@ def weather_forecast_endpoint():
         r.raise_for_status()
         forecast_data = r.json()
         
-        # Initialize crisis mode flags and list
         crisis_mode = False
         crisis_events = []
         
-        # Iterate over forecast items (usually every 3 hours)
         for item in forecast_data.get("list", []):
             weather_info = item.get("weather", [{}])[0]
             weather_main = weather_info.get("main", "").lower()
@@ -448,37 +455,25 @@ def weather_forecast_endpoint():
             wind_speed = item.get("wind", {}).get("speed", 0)
             rain = item.get("rain", {}).get("3h", 0)
             
-            # Condition: Thunderstorm or Tornado
             if weather_main in ["thunderstorm", "tornado"]:
                 crisis_mode = True
                 crisis_events.append({"time": forecast_time, "condition": weather_main.title()})
-            
-            # Condition: Heavy Rain (more than 20 mm in 3 hours)
             if rain and rain > 20:
                 crisis_mode = True
                 crisis_events.append({"time": forecast_time, "condition": "Heavy Rain"})
-            
-            # Condition: Extreme Heat (temperature > 40°C)
             if temp is not None and temp > 40:
                 crisis_mode = True
                 crisis_events.append({"time": forecast_time, "condition": "Extreme Heat"})
-            
-            # Condition: Severe Cold (temperature < 5°C)
             if temp is not None and temp < 5:
                 crisis_mode = True
                 crisis_events.append({"time": forecast_time, "condition": "Severe Cold"})
-            
-            # Condition: High Winds (wind speed > 20 m/s)
             if wind_speed and wind_speed > 20:
                 crisis_mode = True
                 crisis_events.append({"time": forecast_time, "condition": "High Winds"})
-            
-            # Condition: Dust Storm (weather condition is Dust, Sand, or Ash with high wind)
             if weather_main in ["dust", "sand", "ash"] and wind_speed > 10:
                 crisis_mode = True
                 crisis_events.append({"time": forecast_time, "condition": "Dust/Sand Storm"})
         
-        # Append crisis mode info to the forecast data
         forecast_data["crisis_mode"] = crisis_mode
         forecast_data["crisis_events"] = crisis_events
         
@@ -486,7 +481,6 @@ def weather_forecast_endpoint():
     except Exception as e:
         print("Error in /weather endpoint:", e)
         return jsonify({"error": str(e)}), 500
-
 
 @app.route('/')
 def home():
@@ -630,5 +624,131 @@ def disease_prediction_html():
     </html>
     '''
 
+# -----------------------------
+# Registration, Login & Rental Endpoints
+# -----------------------------
+@app.route('/register', methods=['POST'])
+def register():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No registration data provided."}), 400
+    username = data.get('username')
+    password = data.get('password')
+    if not username or not password:
+        return jsonify({"error": "Username and password are required."}), 400
+    if User.query.filter_by(username=username).first():
+        return jsonify({"error": "Username already exists."}), 400
+    password_hash = generate_password_hash(password)
+    new_user = User(username=username, password_hash=password_hash)
+    db.session.add(new_user)
+    db.session.commit()
+    return jsonify({"message": "User registered successfully."})
+
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No login data provided."}), 400
+    username = data.get('username')
+    password = data.get('password')
+    if not username or not password:
+        return jsonify({"error": "Username and password are required."}), 400
+    user = User.query.filter_by(username=username).first()
+    if user and check_password_hash(user.password_hash, password):
+        session['logged_in'] = True
+        session['username'] = username
+        return jsonify({"message": "Login successful."})
+    else:
+        return jsonify({"error": "Invalid credentials."}), 401
+
+@app.route('/logout', methods=['POST'])
+def logout():
+    session.clear()
+    return jsonify({"message": "Logged out successfully."})
+
+@app.route('/rentals', methods=['GET'])
+def get_rentals():
+    rentals = Rental.query.all()
+    rental_list = []
+    for rental in rentals:
+        rental_list.append({
+            "id": rental.id,
+            "title": rental.title,
+            "description": rental.description,
+            "price": rental.price,
+            "contact": rental.contact,
+            "equipment_type": rental.equipment_type,
+            "rental_duration": rental.rental_duration,
+            "location": rental.location,
+            "posted_by": rental.posted_by,
+            "photo": rental.photo
+        })
+    return jsonify({"rentals": rental_list})
+
+@app.route('/rentals', methods=['POST'])
+def add_rental():
+    if not session.get('logged_in'):
+        return jsonify({"error": "Authentication required to add rental."}), 401
+    # Support both JSON and multipart/form-data
+    if request.content_type.startswith('multipart/form-data'):
+        data = request.form.to_dict()
+    else:
+        data = request.get_json()
+    title = data.get('title')
+    description = data.get('description')
+    price = data.get('price')
+    contact = data.get('contact')
+    equipment_type = data.get('equipment_type')
+    rental_duration = data.get('rental_duration')
+    location = data.get('location')
+    if not title or not description or price is None or not contact or not equipment_type or not rental_duration or not location:
+         return jsonify({"error": "Missing required rental information. All fields are required."}), 400
+    try:
+        price = float(price)
+    except:
+        return jsonify({"error": "Price must be a number."}), 400
+    new_rental = Rental(
+        title=title,
+        description=description,
+        price=price,
+        contact=contact,
+        equipment_type=equipment_type,
+        rental_duration=rental_duration,
+        location=location,
+        posted_by=session.get('username')
+    )
+    # Process optional photo upload
+    if 'photo' in request.files:
+        photo_file = request.files['photo']
+        if photo_file.filename != "":
+            uploads_dir = os.path.join(bundle_dir, "uploads")
+            if not os.path.exists(uploads_dir):
+                os.makedirs(uploads_dir)
+            file_path = os.path.join(uploads_dir, photo_file.filename)
+            photo_file.save(file_path)
+            new_rental.photo = file_path
+    db.session.add(new_rental)
+    db.session.commit()
+    return jsonify({
+        "message": "Rental added successfully.",
+        "rental": {
+            "id": new_rental.id,
+            "title": new_rental.title,
+            "description": new_rental.description,
+            "price": new_rental.price,
+            "contact": new_rental.contact,
+            "equipment_type": new_rental.equipment_type,
+            "rental_duration": new_rental.rental_duration,
+            "location": new_rental.location,
+            "posted_by": new_rental.posted_by,
+            "photo": new_rental.photo
+        }
+    })
+
+# -----------------------------
+# Main
+# -----------------------------
 if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
     app.run(debug=True, host='0.0.0.0', port=5000)
