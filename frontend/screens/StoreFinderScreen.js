@@ -1,6 +1,13 @@
-// frontend/screens/StoreFinderScreen.js
+// screens/StoreFinderScreen.js
 import React, { useState, useEffect } from "react";
-import { View, Text, Button, ActivityIndicator, Modal, TouchableOpacity, Linking } from "react-native";
+import {
+  View,
+  Text,
+  Button,
+  ActivityIndicator,
+  Modal,
+  TouchableOpacity,
+} from "react-native";
 import MapView, { Marker, Callout } from "react-native-maps";
 import * as Location from "expo-location";
 import { BACKEND_URL } from "../config";
@@ -37,7 +44,9 @@ const StoreFinderScreen = ({ route }) => {
 
   const fetchStoreDetails = async (place_id) => {
     try {
-      const url = `${BACKEND_URL}/place_details?place_id=${encodeURIComponent(place_id)}`;
+      const url = `${BACKEND_URL}/place_details?place_id=${encodeURIComponent(
+        place_id
+      )}`;
       const response = await fetch(url);
       const data = await response.json();
       if (data.error) {
@@ -112,14 +121,20 @@ const StoreFinderScreen = ({ route }) => {
               <View style={{ width: 200 }}>
                 <Text style={{ fontWeight: "bold" }}>{store.name}</Text>
                 <Text>{store.address}</Text>
-                <Text style={{ color: "blue", marginTop: 5 }}>View Details</Text>
+                <Text style={{ color: "blue", marginTop: 5 }}>
+                  View Details
+                </Text>
               </View>
             </Callout>
           </Marker>
         ))}
       </MapView>
       {loading && (
-        <ActivityIndicator style={styles.mapLoading} size="large" color="#2196F3" />
+        <ActivityIndicator
+          style={styles.mapLoading}
+          size="large"
+          color="#2196F3"
+        />
       )}
       <Modal
         visible={modalVisible}
@@ -135,7 +150,9 @@ const StoreFinderScreen = ({ route }) => {
             {storeDetails ? (
               <>
                 <Text style={styles.modalTitle}>{storeDetails.name}</Text>
-                <Text style={styles.modalText}>{storeDetails.formatted_address}</Text>
+                <Text style={styles.modalText}>
+                  {storeDetails.formatted_address}
+                </Text>
                 {storeDetails.formatted_phone_number && (
                   <Text style={styles.modalText}>
                     Phone: {storeDetails.formatted_phone_number}
@@ -146,18 +163,21 @@ const StoreFinderScreen = ({ route }) => {
                     Website: {storeDetails.website}
                   </Text>
                 )}
-                {storeDetails.opening_hours && storeDetails.opening_hours.weekday_text && (
-                  <>
-                    <Text style={[styles.modalText, { marginTop: 10 }]}>
-                      Opening Hours:
-                    </Text>
-                    {storeDetails.opening_hours.weekday_text.map((line, index) => (
-                      <Text key={index} style={styles.modalText}>
-                        {line}
+                {storeDetails.opening_hours &&
+                  storeDetails.opening_hours.weekday_text && (
+                    <>
+                      <Text style={[styles.modalText, { marginTop: 10 }]}>
+                        Opening Hours:
                       </Text>
-                    ))}
-                  </>
-                )}
+                      {storeDetails.opening_hours.weekday_text.map(
+                        (line, index) => (
+                          <Text key={index} style={styles.modalText}>
+                            {line}
+                          </Text>
+                        )
+                      )}
+                    </>
+                  )}
                 <Button
                   title="Close"
                   onPress={() => {

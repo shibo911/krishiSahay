@@ -1,4 +1,4 @@
-// frontend/navigation/MainTabs.js
+// navigation/MainTabs.js
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
@@ -36,7 +36,10 @@ const MainTabs = () => {
         headerShown: false,
       })}
     >
-      <Tab.Screen name="Disease Prediction" component={DiseasePredictionScreen} />
+      <Tab.Screen
+        name="Disease Prediction"
+        component={DiseasePredictionScreen}
+      />
       <Tab.Screen name="Chat" component={ChatScreen} />
       <Tab.Screen name="Schemes" component={GovernmentSchemesScreen} />
       <Tab.Screen name="Weather" component={WeatherScreen} />
