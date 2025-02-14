@@ -1,32 +1,30 @@
-// frontend/App.js
 import React from "react";
-import { ImageBackground } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
-import MainTabs from "./navigation/MainTabs";
-import StoreFinderScreen from "./screens/StoreFinderScreen";
-import LoginScreen from "./screens/LoginScreen";
-import RegisterScreen from "./screens/RegisterScreen";
-import styles from "./styles/styles";
+import LandingPage from "./screens/LandingScreen";
+import DiseasePredictionScreen from "./screens/DiseasePredictionScreen";
+import ChatScreen from "./screens/ChatScreen";
+import WeatherScreen from "./screens/WeatherScreen";
+import GovernmentSchemesScreen from "./screens/GovernmentSchemesScreen";
+import RentalsScreen from "./screens/RentalsScreen"; // Ensure this exists
 
 const Stack = createStackNavigator();
 
 export default function App() {
   return (
-    <ImageBackground
-      source={require("./assets/background.jpg")}
-      style={[styles.background, { flex: 1 }]}
-      imageStyle={styles.backgroundImage}
-      resizeMode="cover"
-    >
-      <NavigationContainer>
-        <Stack.Navigator>
-          <Stack.Screen name="Home" component={MainTabs} options={{ headerShown: false }} />
-          <Stack.Screen name="Store Finder" component={StoreFinderScreen} />
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Register" component={RegisterScreen} />
-        </Stack.Navigator>
-      </NavigationContainer>
-    </ImageBackground>
+    <NavigationContainer>
+      <Stack.Navigator>
+        <Stack.Screen 
+          name="Landing" 
+          component={LandingPage} 
+          options={{ headerShown: false }} 
+        />
+        <Stack.Screen name="DiseasePrediction" component={DiseasePredictionScreen} />
+        <Stack.Screen name="Chat" component={ChatScreen} />
+        <Stack.Screen name="Weather" component={WeatherScreen} />
+        <Stack.Screen name="GovernmentSchemes" component={GovernmentSchemesScreen} />
+        <Stack.Screen name="Rentals" component={RentalsScreen} />
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
