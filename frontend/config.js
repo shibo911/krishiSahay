@@ -1,2 +1,2 @@
 // frontend/config.js
-export const BACKEND_URL = "http://192.168.234.172:5000";
+export const BACKEND_URL = "http://172.70.109.41:5000";
