@@ -2,6 +2,7 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
+import { Platform } from "react-native";
 
 import DiseasePredictionScreen from "../screens/DiseasePredictionScreen";
 import ChatScreen from "../screens/ChatScreen";
@@ -11,18 +12,25 @@ import RentalsScreen from "../screens/RentalsScreen";
 
 const Tab = createBottomTabNavigator();
 
-const MainTabs = () => {
+const MainTabs = ({ route }) => {
+  // Read the initial tab from route params (default to "Disease Prediction")
+  const initialTab = route.params?.initialTab || "Disease Prediction";
+
   return (
     <Tab.Navigator
+      initialRouteName={initialTab}
+      detachInactiveScreens={false} // Keeps inactive tabs mounted
       screenOptions={({ route }) => ({
+        unmountOnBlur: false, // Prevents tabs from unmounting when not focused
         tabBarIcon: ({ focused, color, size }) => {
-          let iconName;
+          let iconName = "";
           if (route.name === "Disease Prediction") {
-            iconName = focused ? "leaf" : "leaf-outline";
+            // Both platforms use the same valid Ionicons v5 names.
+            iconName = focused ? "analytics" : "analytics-outline";
           } else if (route.name === "Chat") {
             iconName = focused ? "chatbubble" : "chatbubble-outline";
           } else if (route.name === "Schemes") {
-            iconName = focused ? "document-text" : "document-text-outline";
+            iconName = focused ? "newspaper" : "newspaper-outline";
           } else if (route.name === "Weather") {
             iconName = focused ? "cloud" : "cloud-outline";
           } else if (route.name === "Rentals") {
