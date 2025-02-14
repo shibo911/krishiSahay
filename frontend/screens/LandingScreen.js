@@ -42,19 +42,20 @@ const LandingPage = () => {
 
       <TouchableOpacity 
         style={styles.button} 
+        onPress={() => navigation.navigate("Rentals")}
+      >
+        <FontAwesome name="shopping-cart" size={24} color="white" />
+        <Text style={styles.buttonText}>Agri Trade</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity 
+        style={styles.button} 
         onPress={() => navigation.navigate("GovernmentSchemes")}
       >
         <FontAwesome name="info" size={24} color="white" />
         <Text style={styles.buttonText}>Govt. Schemes</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity 
-        style={styles.button} 
-        onPress={() => navigation.navigate("Rentals")}
-      >
-        <FontAwesome name="shopping-cart" size={24} color="white" />
-        <Text style={styles.buttonText}>Rentals</Text>
-      </TouchableOpacity>
     </View>
   );
 };
