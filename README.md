@@ -117,7 +117,7 @@ Click the image above or [here](https://www.youtube.com/watch?v=sYwO2KSTbNI) to 
 
 ---
 
-## 👥 Team: API Avengers
+## 👥 Team: Visionary Coders
 
 🚀 The passionate developers behind **KrishiSahay**:
 
