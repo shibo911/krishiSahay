@@ -19,7 +19,7 @@ KrishiSahay offers a **comprehensive suite of features** to tackle modern agricu
 ## 🎯 Key Benefits
 
 🌱 **Early Disease Detection** – _Prevent widespread damage with timely identification of crop diseases._  
-🌦️ **Proactive Weather Alerts** – _Prepare for adverse conditions with real-time weather updates._  
+☂️ **Proactive Weather Alerts** – _Prepare for adverse conditions with real-time weather updates._  
 🧑‍🌾 **AI-Powered Expert Advice** – _Get instant and accurate farming solutions via an intuitive chatbot._  
 💰 **Maximize Resources** – _Access **government schemes** and an **equipment marketplace** for better resource management._  
 🖥️ **User-Friendly UI** – _Designed specifically for farmers with a seamless and intuitive experience._  
@@ -30,44 +30,55 @@ KrishiSahay offers a **comprehensive suite of features** to tackle modern agricu
 
 Follow these steps to get **KrishiSahay** up and running on your local machine:
 
-### 1️⃣ Clone the Repository
+### 1⃣ Clone the Repository
 ```bash
  git clone https://github.com/shibo911/krishiSahay.git
  cd krishiSahay
 ```
 
-### 2️⃣ Download the Plant Detection Model
+### 2⃣ Download the Plant Detection Model
 💽 **[Download Model](https://drive.google.com/file/d/1AngdnHknntvq0epasAPU5RGDo8lulojM/view)**  
 After downloading, place the model file inside the `backend` folder.
 
-### 3️⃣ Install Backend Dependencies
+### 3⃣ Install Backend Dependencies
 ```bash
  pip install -r requirements.txt
 ```
 
-### 4️⃣ Run the Backend
+### 4⃣ Run the Backend
 ```bash
  python app.py
 ```
 **Note:** Ensure you have valid API keys for **Gemini, Maps.Pro, and OpenWeather** as the free tier might expire.
 
-### 5️⃣ Setup the Frontend
+### 5⃣ Setup the Frontend
 ```bash
  cd frontend
  npm install
 ```
 
 #### Configure Backend URL
-📄 Edit `config.js` in the frontend folder and update the **backend URL** where the Flask server is hosted.
+📝 Edit `config.js` in the frontend folder and update the **backend URL** where the Flask server is hosted.
 
-### 6️⃣ Start the Frontend
+### 6⃣ Start the Frontend
 ```bash
  npm start
 ```
 
 #### Run on Mobile/Desktop
 📱 **Mobile:** Use the **Expo Go** app from Play Store to run the application.  
-💻 **Desktop:** Open the **local server URL** in your browser.
+🖥️ **Desktop:** Open the **local server URL** in your browser.
+
+---
+
+## 🎥 Demo Video
+
+📺 **Watch KrishiSahay in Action!**  
+Check out our demo video on YouTube to see KrishiSahay in action:
+
+[![Watch the Demo](https://img.youtube.com/vi/sYwO2KSTbNI/0.jpg)](https://www.youtube.com/watch?v=sYwO2KSTbNI)
+
+Click the image above or [here](https://www.youtube.com/watch?v=sYwO2KSTbNI) to watch the demo.
 
 ---
 
@@ -77,7 +88,7 @@ After downloading, place the model file inside the `backend` folder.
 💬 **Chat with AI Expert** – _Get expert farming advice through an interactive AI chatbot._  
 🌍 **Weather Forecasts** – _Stay updated with real-time weather information and alerts._  
 🏩 **Government Schemes** – _Browse through subsidies and financial assistance programs._  
-🛒 **Equipment Marketplace** – _Buy, sell, or rent farming tools with ease._  
+🛍️ **Equipment Marketplace** – _Buy, sell, or rent farming tools with ease._  
 
 ---
 
@@ -95,17 +106,17 @@ After downloading, place the model file inside the `backend` folder.
 
 We **welcome contributions** from the community! Follow these steps:
 
-1. **🔄 Fork the Repo** – _Create a copy of the project._
-2. **🌿 Create a New Branch** – _Use a meaningful name, e.g., `feature/add-xyz`._
-3. **📝 Commit Your Changes** – _Make sure they are well-documented._
-4. **📄 Push to Your Branch** – _Push changes to your fork._
-5. **🔀 Open a Pull Request** – _Explain your modifications and improvements._
+1. **🔄 Fork the Repo** – _Create a copy of the project._  
+2. **🌿 Create a New Branch** – _Use a meaningful name, e.g., `feature/add-xyz`._  
+3. **📝 Commit Your Changes** – _Make sure they are well-documented._  
+4. **📄 Push to Your Branch** – _Push changes to your fork._  
+5. **🗐 Open a Pull Request** – _Explain your modifications and improvements._  
 
 For major changes, open an **issue** first to discuss your proposal.
 
 ---
 
-## 🐟 License
+## 🦈 License
 
 **KrishiSahay** is licensed under the **MIT License**.  
 
