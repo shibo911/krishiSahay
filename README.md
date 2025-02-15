@@ -1,4 +1,4 @@
-# 🌾 KrishiSahay - Revolutionizing Agriculture with AI & ML 🌱
+# 🌾 KrishiSahay - Tomorrow's Farming, Today's Tech 🌱
 
 KrishiSahay is an innovative platform that integrates modern technologies like **Python, AI, ML, and JavaScript** to empower farmers with actionable insights, expert advice, and essential resources. Our goal is to enhance productivity and sustainability in agriculture.
 
