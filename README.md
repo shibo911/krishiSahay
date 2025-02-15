@@ -115,11 +115,6 @@ We **welcome contributions** from the community! Follow these steps:
 
 For major changes, open an **issue** first to discuss your proposal.
 
----
-
-## 🦠 License
-
-**KrishiSahay** is licensed under the **MIT License**.  
 
 🌾 _Let's revolutionize **agriculture** together!_ 🚜✨
 
