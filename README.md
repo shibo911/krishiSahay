@@ -19,7 +19,7 @@ KrishiSahay offers a **comprehensive suite of features** to tackle modern agricu
 ## 🎯 Key Benefits
 
 🌱 **Early Disease Detection** – _Prevent widespread damage with timely identification of crop diseases._  
-☂️ **Proactive Weather Alerts** – _Prepare for adverse conditions with real-time weather updates._  
+☔️ **Proactive Weather Alerts** – _Prepare for adverse conditions with real-time weather updates._  
 🧑‍🌾 **AI-Powered Expert Advice** – _Get instant and accurate farming solutions via an intuitive chatbot._  
 💰 **Maximize Resources** – _Access **government schemes** and an **equipment marketplace** for better resource management._  
 🖥️ **User-Friendly UI** – _Designed specifically for farmers with a seamless and intuitive experience._  
@@ -30,28 +30,29 @@ KrishiSahay offers a **comprehensive suite of features** to tackle modern agricu
 
 Follow these steps to get **KrishiSahay** up and running on your local machine:
 
-### 1⃣ Clone the Repository
+### 1️⃣ Clone the Repository
 ```bash
  git clone https://github.com/shibo911/krishiSahay.git
  cd krishiSahay
 ```
 
-### 2⃣ Download the Plant Detection Model
+### 2️⃣ Download the Plant Detection Model
 💽 **[Download Model](https://drive.google.com/file/d/1AngdnHknntvq0epasAPU5RGDo8lulojM/view)**  
 After downloading, place the model file inside the `backend` folder.
 
-### 3⃣ Install Backend Dependencies
+### 3️⃣ Install Backend Dependencies
 ```bash
+ cd backend
  pip install -r requirements.txt
 ```
 
-### 4⃣ Run the Backend
+### 4️⃣ Run the Backend
 ```bash
  python app.py
 ```
 **Note:** Ensure you have valid API keys for **Gemini, Maps.Pro, and OpenWeather** as the free tier might expire.
 
-### 5⃣ Setup the Frontend
+### 5️⃣ Setup the Frontend
 ```bash
  cd frontend
  npm install
@@ -60,7 +61,7 @@ After downloading, place the model file inside the `backend` folder.
 #### Configure Backend URL
 📝 Edit `config.js` in the frontend folder and update the **backend URL** where the Flask server is hosted.
 
-### 6⃣ Start the Frontend
+### 6️⃣ Start the Frontend
 ```bash
  npm start
 ```
@@ -88,7 +89,7 @@ Click the image above or [here](https://www.youtube.com/watch?v=sYwO2KSTbNI) to 
 💬 **Chat with AI Expert** – _Get expert farming advice through an interactive AI chatbot._  
 🌍 **Weather Forecasts** – _Stay updated with real-time weather information and alerts._  
 🏩 **Government Schemes** – _Browse through subsidies and financial assistance programs._  
-🛍️ **Equipment Marketplace** – _Buy, sell, or rent farming tools with ease._  
+🛙 **Equipment Marketplace** – _Buy, sell, or rent farming tools with ease._  
 
 ---
 
@@ -110,13 +111,13 @@ We **welcome contributions** from the community! Follow these steps:
 2. **🌿 Create a New Branch** – _Use a meaningful name, e.g., `feature/add-xyz`._  
 3. **📝 Commit Your Changes** – _Make sure they are well-documented._  
 4. **📄 Push to Your Branch** – _Push changes to your fork._  
-5. **🗐 Open a Pull Request** – _Explain your modifications and improvements._  
+5. **💐 Open a Pull Request** – _Explain your modifications and improvements._  
 
 For major changes, open an **issue** first to discuss your proposal.
 
 ---
 
-## 🦈 License
+## 🦠 License
 
 **KrishiSahay** is licensed under the **MIT License**.  
 
