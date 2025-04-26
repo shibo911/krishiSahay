@@ -45,7 +45,7 @@ model_path = os.path.join(bundle_dir, 'plant_disease_prediction_model.h5')
 # -----------------------------
 # Hardcoded API keys (not recommended for production)
 GEN_AI_API_KEY = "AIzaSyDlXMPgEKz9rySMSPtsgRlyeyoti35xFLU"
-GOMAPS_API_KEY = "AlzaSyH0NMUUZXYmHKHNNTNIt99pztmSxlG4NWQ"
+GOMAPS_API_KEY = "AlzaSyf_XTiDvLpiNOwU2psasE6fXNwuMzOpqGf"
 OPENWEATHER_API_KEY = "8f357a7db28608c3a382d54f22603874"
 
 # Configure the generative AI service
@@ -350,55 +350,50 @@ def govt_schemes_endpoint():
             })
     return jsonify({"schemes": schemes})
 
+FOURSQ_KEY = "fsq3geIgBOHvLl9kMr30Qzzfhi48laYwrdAN5OcGDiD+VBo="
+
 @app.route('/store_finder', methods=['GET'])
-def store_finder_endpoint():
-    lat = request.args.get("lat")
-    lon = request.args.get("lon")
-    store_type = request.args.get("store_type")
+def store_finder():
+    # Required query params
+    lat = request.args.get('lat')
+    lon = request.args.get('lon')
+    query = request.args.get('store_type', 'farm supply')
+
     if not lat or not lon:
-        return jsonify({"error": "Latitude and longitude required."}), 400
-    try:
-        lat = float(lat)
-        lon = float(lon)
-    except ValueError:
-        return jsonify({"error": "Invalid coordinates provided."}), 400
+        return jsonify({"error": "Latitude and longitude are required."}), 400
 
-    query = f"{store_type} near me" if store_type else "agriculture supply store near me"
-    location_str = f"{lat},{lon}"
-    radius = 50000
-
+    # Foursquare Places Search endpoint
+    url = "https://api.foursquare.com/v3/places/search"
+    headers = {
+        "Accept":        "application/json",
+        "Authorization": FOURSQ_KEY   # Hardcoded API key
+    }
     params = {
+        "ll":    f"{lat},{lon}",
         "query": query,
-        "location": location_str,
-        "radius": radius,
-        "key": GOMAPS_API_KEY
+        "radius": 50000,
+        "limit":  50
     }
 
-    url = "https://maps.gomaps.pro/maps/api/place/textsearch/json"
+    resp = requests.get(url, headers=headers, params=params)
+    if resp.status_code != 200:
+        return jsonify({
+            "error":   "Foursquare API error",
+            "details": resp.text
+        }), resp.status_code
 
-    try:
-        r = requests.get(url, params=params)
-        r.raise_for_status()
-        data = r.json()
-        if data.get("status") != "OK":
-            return jsonify({
-                "error": f"GoMaps Places API error: {data.get('status')}",
-                "details": data.get("error_message", "No additional details provided")
-            }), 500
-        results = data.get("results", [])
-        stores = []
-        for result in results:
-            store = {
-                "name": result.get("name"),
-                "address": result.get("formatted_address"),
-                "lat": result.get("geometry", {}).get("location", {}).get("lat"),
-                "lon": result.get("geometry", {}).get("location", {}).get("lng"),
-                "place_id": result.get("place_id")
-            }
-            stores.append(store)
-        return jsonify({"stores": stores})
-    except Exception as e:
-        return jsonify({"error": f"Error fetching store data: {e}"}), 500
+    data = resp.json()
+    stores = []
+    for place in data.get("results", []):
+        stores.append({
+            "id":      place.get("fsq_id"),
+            "name":    place.get("name"),
+            "lat":     place["geocodes"]["main"]["latitude"],
+            "lon":     place["geocodes"]["main"]["longitude"],
+            "address": place["location"].get("formatted_address")
+        })
+
+    return jsonify({"stores": stores})
 
 @app.route('/place_details', methods=['GET'])
 def place_details_endpoint():
